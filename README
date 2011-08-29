@@ -1,0 +1,42 @@
+README
+======
+
+This is the repo holding all relevant files to build a (hopefully) proper Debian package for the game flare (see Links section).
+
+
+This repo uses 4 branches:
+
+* master
+holds the current upstream + the debian folder that's needed to build the package
+* upstream
+holds the releases of flare
+* pristine-tar
+pristine-tar is used to be able to rebuild an orig.tar.gz from the upstream branch. Thus I don't have to keep all tar balls ever release in this repo
+* readme_first
+is basically here for the README file you are just reading :)
+
+If you want to build a flare package on your own, follow these steps:
+
+# clone the repo
+git clone git@github.com:hennr/debian-flare.git
+
+# ...
+cd debian-flare
+
+# make git follow the repo's branches locally
+git checkout -b pristine-tar  origin/pristine-tar
+git checkout -b upstream origin/upstream
+
+# build the package with the tool you prefer
+git-buildpackage
+dpkg-buildpackage
+...
+
+
+Links
+=====
+
+Homepage  http://clintbellanger.net/rpg
+Source    https://github.com/clintbellanger/flare
+Forums    http://opengameart.org/forums/projects/flare
+
