@@ -1,8 +1,0 @@
-flare (0.14.1-1) unstable; urgency=low
-
-  * Initial release (Closes: #622288)
-  * fixed: to long description lines
-  * added CC-BY-SA text to debian/copyright
-  * This is my first Debian package :)
-
- -- Jan-Hendrik Peters <hennr@hennr.name>  Tue, 23 Aug 2011 18:49:56 +0200
