@@ -28,6 +28,9 @@ git checkout -b master origin/master
 git checkout -b upstream origin/upstream
 git checkout -b pristine-tar  origin/pristine-tar
 
+# move to master repo and build it!
+git checkout master
+
 # build the package with the tool you prefer
 git-buildpackage
 dpkg-buildpackage
