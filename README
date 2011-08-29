@@ -11,7 +11,7 @@ holds the current upstream + the debian folder that's needed to build the packag
 * upstream
 holds the releases of flare
 * pristine-tar
-pristine-tar is used to be able to rebuild an orig.tar.gz from the upstream branch. Thus I don't have to keep all tar balls ever release in this repo
+pristine-tar is used to be able to rebuild an orig.tar.gz from the upstream branch. Thus I don't have to keep all tar balls ever released in this repo
 * readme_first
 is basically here for the README file you are just reading :)
 
