@@ -11,7 +11,7 @@ holds the current upstream + the debian folder that's needed to build the packag
 * upstream
 holds the releases of flare
 * pristine-tar
-pristine-tar is used to be able to rebuild an orig.tar.gz from the upstream branch. Thus I don't have to keep all tar balls ever released in this repo
+pristine-tar is used to be able to rebuild an orig.tar.gz from the upstream branch. Thus I don't have to keep all upstream tarballs here
 * readme_first
 is basically here for the README file you are just reading :)
 
@@ -44,3 +44,8 @@ Homepage  http://clintbellanger.net/rpg
 Source    https://github.com/clintbellanger/flare
 Forums    http://opengameart.org/forums/projects/flare
 
+Thanks
+======
+
+A thanks goes out to Matthias Schmitz for helping me with my first Debian package.
+Another thanks goes to <SPONSOR> for sponsoring this package (aka uploading it to Debian).
