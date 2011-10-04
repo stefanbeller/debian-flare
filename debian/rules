@@ -33,5 +33,6 @@ override_dh_installman:
 
 override_dh_fixperms:
 	dh_fixperms
+	# wrong upstream repo perms set, already reported and fixed in 0.15
 	chmod a-x debian/flare/usr/share/games/flare/fonts/white.png
 
