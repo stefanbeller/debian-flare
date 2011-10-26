@@ -1,8 +1,16 @@
 flare (0.14.1-1) unstable; urgency=low
 
+  [ Jan-Hendrik Peters <hennr@hennr.name> ]
   * Initial release (Closes: #622288)
-  * fixed: to long description lines
-  * added CC-BY-SA text to debian/copyright
+  * Added CC-BY-SA text to debian/copyright
   * This is my first Debian package :)
 
- -- Jan-Hendrik Peters <hennr@hennr.name>  Tue, 23 Aug 2011 18:49:56 +0200
+  [ Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com> ]
+  * Recompressed the original tarball as .xz, goes down from ~120MB to
+    ~78MB of space
+  * Created a separate package for data
+  * Minor modifications to the rules file to improve some commands
+    (e.g. the way to clean/remove files)
+  * Added .desktop file
+
+ -- Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>  Tue, 18 Oct 2011 18:49:56 +0200

@@ -1,6 +1,3 @@
-# executable
-flare usr/games/
-
 # data files
 animations usr/share/games/flare
 enemies usr/share/games/flare

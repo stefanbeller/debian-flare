@@ -5,7 +5,7 @@
 #export DH_VERBOSE=1
 
 %:
-	dh $@
+	dh $@ --buildsystem=cmake
 
 override_dh_auto_configure:
 	cd build && cmake .
@@ -14,11 +14,8 @@ override_dh_auto_build:
 	cd build && make
 
 override_dh_auto_clean:
-	-rm -rf build/CMakeFiles/ 
-	-rm flare
-	-rm build/CMakeCache.txt
-	-rm build/cmake_install.cmake
-	-rm build/Makefile
+	rm -rf build/CMakeFiles/ build/CMakeCache.txt build/cmake_install.cmake build/Makefile
+	rm -f flare
 	dh_auto_clean
 
 override_dh_installman:
@@ -34,5 +31,5 @@ override_dh_installman:
 override_dh_fixperms:
 	dh_fixperms
 	# wrong upstream repo perms set, already reported and fixed in 0.15
-	chmod a-x debian/flare/usr/share/games/flare/fonts/white.png
+	chmod a-x debian/flare-data/usr/share/games/flare/fonts/white.png
 
