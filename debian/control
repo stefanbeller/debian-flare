@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Jan-Hendrik Peters <hennr@hennr.name>
 Uploaders: Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>
 DM-Upload-Allowed: yes
-Build-Depends: debhelper (>= 8), libsdl1.2-dev, libsdl-image1.2-dev, libsdl-mixer1.2-dev, docbook-xsl, docbook-xml, xsltproc, cmake
+Build-Depends: debhelper (>= 8), cmake (>= 2.6), libsdl1.2-dev, libsdl-image1.2-dev, libsdl-mixer1.2-dev
 Standards-Version: 3.9.2
 Homepage: http://clintbellanger.net/rpg/
 Vcs-Git: git://github.com/hennr/debian-flare.git

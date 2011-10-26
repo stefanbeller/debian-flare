@@ -5,31 +5,42 @@
 #export DH_VERBOSE=1
 
 %:
-	dh $@ --buildsystem=cmake
+#	mafm 20111021 -- 'dh --sourcedirectory' because CMakeLists.txt
+#	is in there
+	dh $@ --buildsystem=cmake --parallel --builddirectory=build --sourcedirectory=build
 
-override_dh_auto_configure:
-	cd build && cmake .
 
-override_dh_auto_build:
-	cd build && make
+# mafm 20111021 -- unnecessary with 'dh --sourcedirectory', unless
+# buildd machines need them
 
-override_dh_auto_clean:
-	rm -rf build/CMakeFiles/ build/CMakeCache.txt build/cmake_install.cmake build/Makefile
-	rm -f flare
-	dh_auto_clean
+# override_dh_auto_configure:
+# 	cd build && cmake .
+#
+# override_dh_auto_build:
+# 	cd build && make
+#
+# override_dh_auto_clean:
+# 	rm -rf build/CMakeFiles/ build/CMakeCache.txt build/cmake_install.cmake build/Makefile
+# 	rm -f flare
+# 	dh_auto_clean
 
-override_dh_installman:
-	xsltproc --nonet \
-		--param make.year.ranges 1 \
-		--param make.single.year.ranges 1 \
-		--param man.charmap.use.subset 0 \
-		-o debian/ \
- http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl\
-		debian/flare.1.xml
-		dh_installman
+
+# mafm 20111021 -- man page can be regenerated from time to time, no
+# need for this override dh_installman and use xsltproc every time
+# (and so we save a few build-depends as well, XML is not used for
+# anything else)
+
+# override_dh_installman:
+# 	xsltproc --nonet \
+# 		--param make.year.ranges 1 \
+# 		--param make.single.year.ranges 1 \
+# 		--param man.charmap.use.subset 0 \
+# 		-o debian/ \
+# 		http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl \
+# 		debian/flare.1.xml
+# 	dh_installman
 
 override_dh_fixperms:
 	dh_fixperms
-	# wrong upstream repo perms set, already reported and fixed in 0.15
-	chmod a-x debian/flare-data/usr/share/games/flare/fonts/white.png
-
+#	wrong upstream repo perms set, already reported and fixed in 0.15
+	chmod -v a-x $(shell find debian -executable -name \*.png)
