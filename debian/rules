@@ -40,7 +40,14 @@
 # 		debian/flare.1.xml
 # 	dh_installman
 
+# mafm 20111022 -- breaks on buildd machines, disabling chmod at the
+# moment -- better a lintian warning that not building at all...
+
 override_dh_fixperms:
 	dh_fixperms
-#	wrong upstream repo perms set, already reported and fixed in 0.15
-	chmod -v a-x $(shell find debian -executable -name \*.png)
+# #	wrong upstream repo perms set, already reported and fixed in 0.15
+# 	chmod -v a-x $(shell find debian -executable -name \*.png)
+
+#	used for "debugging", so it prints the location of the
+#	"offending" files in the build log
+	find -executable -name \*.png
