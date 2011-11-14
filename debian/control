@@ -13,22 +13,22 @@ Vcs-Browser: https://github.com/hennr/debian-flare
 Package: flare
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, flare-data (= ${source:Version})
-Description: single-player 2D action role-playing game
+Description: single-player 2D action role-playing game, binary
  This fantasy dungeon crawl game is a proof of concept implementation of the
  Free Libre Action Roleplaying Engine (FLARE). FLARE a simple
  isometric-perspective action role-play game engine in the basic style of
  Diablo.
  .
- This package contains the binaries.
+ This package contains the binary.
 
 Package: flare-data
 Architecture: all
 Depends: ${misc:Depends}
 Recommends: flare (= ${source:Version})
-Description: single-player 2D action role-playing game
+Description: single-player 2D action role-playing game, data files
  This fantasy dungeon crawl game is a proof of concept implementation of the
  Free Libre Action Roleplaying Engine (FLARE). FLARE a simple
  isometric-perspective action role-play game engine in the basic style of
  Diablo.
  .
- This package contains the data.
+ This package contains the data files.
