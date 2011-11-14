@@ -1,2 +1,3 @@
 flare usr/games/
 debian/flare-icon.png usr/share/games/flare/
+debian/flare.desktop usr/share/applications
