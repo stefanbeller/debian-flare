@@ -7,5 +7,5 @@ Comment=A single player, 2D-isometric, action Role-Playing Game
 TryExec=/usr/games/flare
 Exec=/usr/games/flare
 Categories=Game;RolePlaying
-Icon=/usr/games/share/flare/flare-icon.png
+Icon=/usr/share/games/flare/flare-icon.png
 Terminal=false
