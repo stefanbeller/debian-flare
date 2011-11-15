@@ -1,8 +1,9 @@
 flare (0.14.1-5) unstable; urgency=low
 
+  [ Jan-Hendrik Peters <hennr@hennr.name> ]
   * Correcting path to icon in the menu file
 
- -- Jan-Hendrik Peters <hennr@hennr.name>  Tue, 15 Nov 2011 19:09:00 +0100 
+ -- Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>  Tue, 15 Nov 2011 22:12:48 +0000
 
 flare (0.14.1-4) unstable; urgency=low
 
