@@ -47,3 +47,11 @@ Forums    http://opengameart.org/forums/projects/flare
 
 A thanks goes out to Matthias Schmitz for helping me with my first Debian package.  
 Another thanks goes to Loic Dachary for sponsoring this package (aka uploading it to Debian).
+
+## Support
+
+If you'd like to support me, you can flattr this package:  
+
+[![Flattr this git repo](http://api.flattr.com/button/flattr-badge-large.png)](https://flattr.com/submit/auto?user_id=hennr&url=https://github.com/hennr/debian-flare&title=debian-flare&language=en_GB&tags=github&category=software) 
+  
+Thanks!
