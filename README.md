@@ -39,11 +39,11 @@ dpkg-buildpackage
 
 ## Links
 
-Homepage  http://clintbellanger.net/rpg
-Source    https://github.com/clintbellanger/flare
-Forums    http://opengameart.org/forums/projects/flare
+Homepage  http://clintbellanger.net/rpg  
+Source    https://github.com/clintbellanger/flare  
+Forums    http://opengameart.org/forums/projects/flare  
 
 ## Thanks
 
-A thanks goes out to Matthias Schmitz for helping me with my first Debian package.
+A thanks goes out to Matthias Schmitz for helping me with my first Debian package.  
 Another thanks goes to Loic Dachary for sponsoring this package (aka uploading it to Debian).
