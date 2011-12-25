@@ -1,15 +1,29 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class NPC
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "NPC.h"
-#include <fstream>
 #include "FileParser.h"
+#include "SharedResources.h"
 
-NPC::NPC(MapIso *_map, ItemDatabase *_items) : Entity(_map) {
+NPC::NPC(MapIso *_map, ItemManager *_items) : Entity(_map) {
 	items = _items;
 
 	// init general vars
@@ -65,7 +79,7 @@ void NPC::load(string npc_id) {
 	string filename_sprites = "";
 	string filename_portrait = "";
 
-	if (infile.open(PATH_DATA + "npcs/" + npc_id + ".txt")) {
+	if (infile.open(mods->locate("npcs/" + npc_id + ".txt"))) {
 		while (infile.next()) {
 			if (infile.section == "dialog") {
 				if (infile.new_section) {
@@ -83,9 +97,9 @@ void NPC::load(string npc_id) {
 				else if (infile.key == "requires_item")
 					dialog[dialog_count-1][event_count].x = atoi(infile.val.c_str());
 				else if (infile.key == "him" || infile.key == "her")
-					dialog[dialog_count-1][event_count].s = infile.val;
+					dialog[dialog_count-1][event_count].s = msg->get(infile.val);
 				else if (infile.key == "you")
-					dialog[dialog_count-1][event_count].s = infile.val;
+					dialog[dialog_count-1][event_count].s = msg->get(infile.val);
 				else if (infile.key == "reward_item") {
 					// id,count
 					dialog[dialog_count-1][event_count].x = atoi(infile.nextValue().c_str());
@@ -106,7 +120,7 @@ void NPC::load(string npc_id) {
 			}
 			else {
 				if (infile.key == "name") {
-					name = infile.val;
+					name = msg->get(infile.val);
 				}
 				else if (infile.key == "level") {
 					level = atoi(infile.val.c_str());
@@ -166,20 +180,21 @@ void NPC::load(string npc_id) {
 void NPC::loadGraphics(string filename_sprites, string filename_portrait) {
 
 	if (filename_sprites != "") {
-		sprites = IMG_Load((PATH_DATA + "images/npcs/" + filename_sprites + ".png").c_str());
+		sprites = IMG_Load(mods->locate("images/npcs/" + filename_sprites + ".png").c_str());
 		if(!sprites) {
 			fprintf(stderr, "Couldn't load NPC sprites: %s\n", IMG_GetError());
 		}
+		else {
+			SDL_SetColorKey( sprites, SDL_SRCCOLORKEY, SDL_MapRGB(sprites->format, 255, 0, 255) );
 	
-		SDL_SetColorKey( sprites, SDL_SRCCOLORKEY, SDL_MapRGB(sprites->format, 255, 0, 255) );
-	
-		// optimize
-		SDL_Surface *cleanup = sprites;
-		sprites = SDL_DisplayFormatAlpha(sprites);
-		SDL_FreeSurface(cleanup);
+			// optimize
+			SDL_Surface *cleanup = sprites;
+			sprites = SDL_DisplayFormatAlpha(sprites);
+			SDL_FreeSurface(cleanup);
+		}
 	}
 	if (filename_portrait != "") {
-		portrait = IMG_Load((PATH_DATA + "images/portraits/" + filename_portrait + ".png").c_str());
+		portrait = IMG_Load(mods->locate("images/portraits/" + filename_portrait + ".png").c_str());
 		if(!portrait) {
 			fprintf(stderr, "Couldn't load NPC portrait: %s\n", IMG_GetError());
 		}
@@ -204,7 +219,7 @@ void NPC::loadSound(string filename, int type) {
 	
 		// if too many already loaded, skip this one
 		if (vox_intro_count == NPC_MAX_VOX) return;
-		vox_intro[vox_intro_count] = Mix_LoadWAV((PATH_DATA + "soundfx/npcs/" + filename).c_str());
+		vox_intro[vox_intro_count] = Mix_LoadWAV(mods->locate("soundfx/npcs/" + filename).c_str());
 		
 		if (vox_intro[vox_intro_count])
 			vox_intro_count++;

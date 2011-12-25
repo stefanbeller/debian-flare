@@ -1,3 +1,20 @@
+/*
+Copyright 2011 kitano
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class Animation
  *
@@ -6,15 +23,12 @@
  * 
  * The intention with the class is to keep it as flexible as possible so that the animations
  * can be used not only for character animations but any animated in-game objects.
- *
- * @author kitano
- * @license GPL
  */
 
 #ifndef ANIMATION_H
 #define ANIMATION_H
 
-#include "SDL_image.h"
+#include <SDL_image.h>
 #include "Utils.h"
 #include <string>
 
@@ -26,21 +40,18 @@ protected:
 	// The sprite sheet
 	SDL_Surface* sprites;
 
-	// The type of animation: eg. play_once or looped
-	std::string type;
-	
 	// Animation data
 	int frameSize;
+	Point render_size;
+	Point render_offset;
 	int position;
 	int frames;
 	int duration;
+	std::string type; // eg. play_once or looped
 	int cur_frame;
 	int disp_frame;
 	int mid_frame;
 	int max_frame;
-	Point render_size;
-	Point render_offset;
-
 	int timesPlayed;
 
 public:

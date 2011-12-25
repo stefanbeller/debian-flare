@@ -1,8 +1,22 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * Settings
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #ifndef SETTINGS_H
@@ -29,6 +43,8 @@ extern bool HWSURFACE;
 
 // Input Settings
 extern bool MOUSE_MOVE;
+extern bool ENABLE_JOYSTICK;
+extern int JOYSTICK_DEVICE;
 
 // Engine Settings
 extern bool MENUS_PAUSE;
@@ -42,6 +58,9 @@ extern int TILE_W;
 extern int TILE_H;
 extern int TILE_W_HALF;
 extern int TILE_H_HALF;
+
+// Language Settings
+extern std::string LANGUAGE;
 
 void setPaths();
 bool loadSettings();

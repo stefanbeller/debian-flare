@@ -1,17 +1,36 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * MenuExperience
  *
  * Handles the display of the Experience bar on the HUD
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "MenuExperience.h"
+#include "SharedResources.h"
+#include "WidgetLabel.h"
 
-MenuExperience::MenuExperience(SDL_Surface *_screen, FontEngine *_font) {
-	screen = _screen;
-	font = _font;
+#include <SDL_mixer.h>
+
+#include <sstream>
+
+
+MenuExperience::MenuExperience() {
 	loadGraphics();
 	
 	
@@ -31,13 +50,12 @@ MenuExperience::MenuExperience(SDL_Surface *_screen, FontEngine *_font) {
 	text_offset.x = 2;
 	text_offset.y = 12;
 	text_justify = JUSTIFY_LEFT;
-	text_label = "XP: ";
 }
 
 void MenuExperience::loadGraphics() {
 
-	background = IMG_Load((PATH_DATA + "images/menus/menu_xp.png").c_str());
-	bar = IMG_Load((PATH_DATA + "images/menus/bar_xp.png").c_str());
+	background = IMG_Load(mods->locate("images/menus/menu_xp.png").c_str());
+	bar = IMG_Load(mods->locate("images/menus/bar_xp.png").c_str());
 	
 	if(!background || !bar) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
@@ -60,13 +78,13 @@ void MenuExperience::loadGraphics() {
  * On mouseover, display progress in text form.
  */
 void MenuExperience::render(StatBlock *stats, Point mouse) {
+
 	SDL_Rect src;
 	SDL_Rect dest;
 	int xp_bar_length;
-	
+
 	// don't display anything if max level
-	// TODO: change this implementation if max level is configurable
-	if (stats->level < 1 || stats->level >= 17) return;
+	if (stats->level < 1 || stats->level == MAX_CHARACTER_LEVEL) return;
 	
 	// lay down the background image first
 	src.x = 0;
@@ -90,14 +108,24 @@ void MenuExperience::render(StatBlock *stats, Point mouse) {
 	dest.y = hud_position.y + bar_offset.y;
 		
 	// draw xp bar
-	SDL_BlitSurface(bar, &src, screen, &dest);		
+	SDL_BlitSurface(bar, &src, screen, &dest);
+
+
+	string text_label;
 	
 	// if mouseover, draw text
 	if (isWithin(hud_position, mouse)) {
-		stringstream ss;
-		ss.str("");
-		ss << text_label << stats->xp << "/" << stats->xp_table[stats->level];
-		font->render(ss.str(), hud_position.x + text_offset.x, hud_position.y + text_offset.y, text_justify, screen, FONT_WHITE);
+
+		if (stats->level < MAX_CHARACTER_LEVEL) {
+			text_label = msg->get("XP: %d/%d", stats->xp, stats->xp_table[stats->level]);
+		}
+		else {
+			text_label = msg->get("XP: %d", stats->xp);
+		}
+
+		WidgetLabel label;
+		label.set(hud_position.x + text_offset.x, hud_position.y + text_offset.y, text_justify, VALIGN_TOP, text_label, FONT_WHITE);
+		label.render();
 	}
 }
 

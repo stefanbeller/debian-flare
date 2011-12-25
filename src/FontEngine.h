@@ -1,10 +1,23 @@
 /*
+Copyright 2011 Clint Bellanger and Thane Brimhall
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
+/*
  * class FontEngine
  * Handles rendering a bitmap font
- *
- * @author Clint Bellanger
- * @license GPL
- *
  */
 
 #ifndef FONT_ENGINE_H
@@ -13,8 +26,9 @@
 
 #include <fstream>
 #include <string>
-#include "SDL.h"
-#include "SDL_image.h"
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_ttf.h>
 #include "Settings.h"
 #include "Utils.h"
 #include "UtilsParsing.h"
@@ -31,33 +45,35 @@ const int FONT_GREEN = 2;
 const int FONT_BLUE = 3;
 const int FONT_GRAY = 4;
 const int FONT_GREY = 4;
+const int FONT_BLACK = 5;
 
 class FontEngine {
 private:
-	SDL_Surface *sprites[5];
-	int font_width;
+	SDL_Color colors[6];
+	int font_pt;
 	int font_height;
-	int kerning;
-	int width[256]; // width of each ASCII character
+	int line_height;
 	SDL_Rect src;
 	SDL_Rect dest;
+	SDL_Surface *ttf;
+	TTF_Font *ttfont;
 
 public:
 	FontEngine();
 	~FontEngine();
-	void load();
 
-	int getWidth() { return font_width; }
-	int getHeight() { return font_height; }
-
-	int calc_length(string text);
-	Point calc_size(string text_with_newlines, int width);
+	int getLineHeight() { return line_height; }
+	int getFontHeight() { return font_height; }
 	
+	int calc_width(string text);
+	Point calc_size(string text_with_newlines, int width);
+
 	void render(string text, int x, int y, int justify, SDL_Surface *target, int color);
 	void render(string text, int x, int y, int justify, SDL_Surface *target, int width, int color);
+	void renderShadowed(string text, int x, int y, int justify, SDL_Surface *target, int color);
+	void renderShadowed(string text, int x, int y, int justify, SDL_Surface *target, int width, int color);	
 	
 	int cursor_y;
-	int line_height;
 };
 
 #endif

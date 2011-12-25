@@ -1,14 +1,29 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class StatBlock
  *
  * Character stats and calculations
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "StatBlock.h"
 #include "FileParser.h"
+#include "SharedResources.h"
 
 StatBlock::StatBlock() {
 
@@ -18,7 +33,6 @@ StatBlock::StatBlock() {
 	hero = false;
 	hero_pos.x = hero_pos.y = -1;
 	hero_alive = true;
-	targeted = 0;
 	
 	// core stats
 	offense_character = defense_character = physical_character = mental_character = 0;
@@ -64,36 +78,17 @@ StatBlock::StatBlock() {
 	blocking = false;
 	
 	// xp table
-	// what experience do you need to reach the next level
-	// formula:
-	// scale 20-50-100-200-500-1000-2000-5000
-	// multiplied by current level
-	// affter 10000, increase by 5k each level
-	
+	// (level * level * 100) plus previous total
 	xp_table[0] = 0;
-	xp_table[1] = 20;
-	xp_table[2] = 100;
-	xp_table[3] = 300;
-	xp_table[4] = 800;
-	xp_table[5] = 2500;
-	xp_table[6] = 6000;
-	xp_table[7] = 14000;
-	xp_table[8] = 40000;
-	xp_table[9] = 90000;
-	xp_table[10] = 150000;
-	xp_table[11] = 220000;
-	xp_table[12] = 300000;
-	xp_table[13] = 390000;
-	xp_table[14] = 490000;
-	xp_table[15] = 600000;
-	xp_table[16] = 720000;
-	xp_table[17] = -1;
+	for (int i=1; i<MAX_CHARACTER_LEVEL; i++) {
+		xp_table[i] = i * i * 100 + xp_table[i-1];
+	}
 
 	teleportation=false;
 	
 	for (int i=0; i<POWERSLOT_COUNT; i++) {
 		power_chance[i] = 0;
-		power_index[i] = 0;
+		power_index[i] = -1;
 		power_cooldown[i] = 0;
 		power_ticks[i] = 0;
 	}
@@ -133,13 +128,13 @@ StatBlock::StatBlock() {
  */
 void StatBlock::load(string filename) {
 	FileParser infile;
-	int num;
+	int num = 0;
 	
-	if (infile.open(PATH_DATA + filename)) {
+	if (infile.open(mods->locate(filename))) {
 		while (infile.next()) {
 			if (isInt(infile.val)) num = atoi(infile.val.c_str());
 			
-			if (infile.key == "name") name = infile.val;
+			if (infile.key == "name") name = msg->get(infile.val);
 			else if (infile.key == "sfx_prefix") sfx_prefix = infile.val;
 			else if (infile.key == "gfx_prefix") gfx_prefix = infile.val;
 			
@@ -192,6 +187,7 @@ void StatBlock::load(string filename) {
 			else if (infile.key == "power_melee_ment") power_index[MELEE_MENT] = num;
 			else if (infile.key == "power_ranged_phys") power_index[RANGED_PHYS] = num;
 			else if (infile.key == "power_ranged_ment") power_index[RANGED_MENT] = num;
+			else if (infile.key == "power_beacon") power_index[BEACON] = num;
 			else if (infile.key == "cooldown_melee_phys") power_cooldown[MELEE_PHYS] = num;
 			else if (infile.key == "cooldown_melee_ment") power_cooldown[MELEE_MENT] = num;
 			else if (infile.key == "cooldown_ranged_phys") power_cooldown[RANGED_PHYS] = num;
@@ -241,7 +237,13 @@ void StatBlock::takeDamage(int dmg) {
  */
 void StatBlock::recalc() {
 
-	// these formulas should be moved to a config file
+	level = 0;
+	for (int i=0; i<MAX_CHARACTER_LEVEL; i++) {
+		if (xp >= xp_table[i])
+			level=i+1;
+	}
+
+	// TODO: move these formula numbers to an engine config file
 	int hp_base = 10;
 	int hp_per_level = 2;
 	int hp_per_physical = 8;
@@ -255,10 +257,10 @@ void StatBlock::recalc() {
 	int mp_regen_per_level = 1;
 	int mp_regen_per_mental = 4;	
 	int accuracy_base = 75;
-	int accuracy_per_level = 2;
+	int accuracy_per_level = 1;
 	int accuracy_per_offense = 5;
 	int avoidance_base = 25;
-	int avoidance_per_level = 2;
+	int avoidance_per_level = 1;
 	int avoidance_per_defense = 5;
 	int crit_base = 5;
 	int crit_per_level = 1;
@@ -284,36 +286,42 @@ void StatBlock::recalc() {
 	physment = get_physical() + get_mental();
 	offdef = get_offense() + get_defense();
 	
-	for (int i=0; i<17; i++) {
-		if (xp >= xp_table[i])
-			level=i+1;
-	}
-	
+	int stat_sum = get_physical() + get_mental() + get_offense() + get_defense();
+
+    // TODO: These class names do. not get caught by xgettext, so figure out
+    // a way to translate them.
+
 	// determine class
+	// if all four stats are max, Grand Master
+	if (stat_sum >= 20)
+		character_class = msg->get("Grand Master");
+	// if three stats are max, Master
+	else if (stat_sum >= 16)
+		character_class = msg->get("Master");
 	// if one attribute is much higher than the others, use the attribute class name
-	if (get_physical() > get_mental()+1 && get_physical() > get_offense()+1 && get_physical() > get_defense()+1)
-		character_class = "Warrior";
+	else if (get_physical() > get_mental()+1 && get_physical() > get_offense()+1 && get_physical() > get_defense()+1)
+		character_class = msg->get("Warrior");
 	else if (get_mental() > get_physical()+1 && get_mental() > get_offense()+1 && get_mental() > get_defense()+1)
-		character_class = "Wizard";
+		character_class = msg->get("Wizard");
 	else if (get_offense() > get_physical()+1 && get_offense() > get_mental()+1 && get_offense() > get_defense()+1)
-		character_class = "Ranger";
+		character_class = msg->get("Ranger");
 	else if (get_defense() > get_physical()+1 && get_defense() > get_mental()+1 && get_defense() > get_offense()+1)
-		character_class = "Paladin";
+		character_class = msg->get("Paladin");
 	// if there is no dominant attribute, use the dicipline class name
 	else if (physoff > physdef && physoff > mentoff && physoff > mentdef && physoff > physment && physoff > offdef)
-		character_class = "Rogue";
+		character_class = msg->get("Rogue");
 	else if (physdef > physoff && physdef > mentoff && physdef > mentdef && physdef > physment && physdef > offdef)
-		character_class = "Knight";
+		character_class = msg->get("Knight");
 	else if (mentoff > physoff && mentoff > physdef && mentoff > mentdef && mentoff > physment && mentoff > offdef)
-		character_class = "Shaman";
+		character_class = msg->get("Shaman");
 	else if (mentdef > physoff && mentdef > physdef && mentdef > mentoff && mentdef > physment && mentdef > offdef)
-		character_class = "Cleric";
+		character_class = msg->get("Cleric");
 	else if (physment > physoff && physment > physdef && physment > mentoff && physment > mentdef && physment > offdef)
-		character_class = "Battle Mage";
+		character_class = msg->get("Battle Mage");
 	else if (offdef > physoff && offdef > physdef && offdef > mentoff && offdef > mentdef && offdef > physment)
-		character_class = "Heavy Archer";
+		character_class = msg->get("Heavy Archer");
 	// otherwise, use the generic name
-	else character_class = "Adventurer";
+	else character_class = msg->get("Adventurer");
 	
 }
 
@@ -373,10 +381,6 @@ void StatBlock::logic() {
 		hp += hot_value;
 		if (hp > maxhp) hp = maxhp;
 	}
-	
-	// handle targeted
-	if (targeted > 0)
-		targeted--;
 		
 	// handle buff/debuff animations
 	shield_frame++;

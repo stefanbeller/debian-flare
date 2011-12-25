@@ -1,10 +1,24 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class LootManager
  *
  * Handles floor loot
- *
- * @author Clint Bellanger
- * @license GPL
  */
  
 #ifndef LOOT_MANAGER_H
@@ -12,20 +26,22 @@
 
 #include <string>
 #include <sstream>
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
 
 #include "Utils.h"
-#include "ItemDatabase.h"
-#include "MenuTooltip.h"
+#include "ItemManager.h"
+#include "WidgetTooltip.h"
 #include "EnemyManager.h"
+#include "SharedResources.h"
 
 struct LootDef {
 	ItemStack stack;
 	int frame;
 	Point pos;
 	int gold;
+	TooltipData tip;
 };
 
 
@@ -42,8 +58,8 @@ const int LOOT_RANGE = 3 * UNITS_PER_TILE;
 class LootManager {
 private:
 
-	ItemDatabase *items;
-	MenuTooltip *tip;
+	ItemManager *items;
+	WidgetTooltip *tip;
 	EnemyManager *enemies;
 	MapIso *map;
 
@@ -63,7 +79,7 @@ private:
 	Point frame_size;
 	int frame_count; // the last frame is the "at-rest" floor loot graphic
 	
-	// loot refers to ItemDatabase indices
+	// loot refers to ItemManager indices
 	LootDef loot[256]; // TODO: change to dynamic list without limits
 	
 	// loot tables multiplied out
@@ -76,7 +92,7 @@ private:
 	int anim_loot_duration;
 	
 public:
-	LootManager(ItemDatabase *_items, MenuTooltip *_tip, EnemyManager *_enemies, MapIso *_map);
+	LootManager(ItemManager *_items, EnemyManager *_enemies, MapIso *_map);
 	~LootManager();
 
 	void handleNewMap();

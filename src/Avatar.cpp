@@ -1,15 +1,33 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class Avatar
  *
  * Contains logic and rendering routines for the player avatar.
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "Avatar.h"
+#include "SharedResources.h"
 
-Avatar::Avatar(PowerManager *_powers, InputState *_inp, MapIso *_map) : Entity(_map), powers(_powers), inp(_inp) {
+#include <sstream>
+
+
+Avatar::Avatar(PowerManager *_powers, MapIso *_map) : Entity(_map), powers(_powers) {
 	
 	init();
 	
@@ -31,6 +49,7 @@ void Avatar::init() {
 	stats.pos.y = map->spawn.y;
 	stats.direction = map->spawn_dir;
 	current_power = -1;
+	newLevelNotification = false;
 		
 	lockSwing = false;
 	lockCast = false;
@@ -64,6 +83,10 @@ void Avatar::init() {
 	for (int i = 0; i < POWER_COUNT; i++) {
 		stats.hero_cooldown[i] = 0;
 	}
+	
+	for (int i=0; i<4; i++) {
+		sound_steps[i] = NULL;
+	}
 }
 
 void Avatar::loadGraphics(string _img_main, string _img_armor, string _img_off) {
@@ -84,10 +107,10 @@ void Avatar::loadGraphics(string _img_main, string _img_armor, string _img_off) 
 	
 		// composite the hero graphic
 		if (sprites) SDL_FreeSurface(sprites);
-		sprites = IMG_Load((PATH_DATA + "images/avatar/" + stats.base + "/" + img_armor + ".png").c_str());
-		if (img_main != "") gfx_main = IMG_Load((PATH_DATA + "images/avatar/" + stats.base + "/" + img_main + ".png").c_str());
-		if (img_off != "") gfx_off = IMG_Load((PATH_DATA + "images/avatar/" + stats.base + "/" + img_off + ".png").c_str());
-		gfx_head = IMG_Load((PATH_DATA + "images/avatar/" + stats.base + "/" + stats.head + ".png").c_str());
+		sprites = IMG_Load(mods->locate("images/avatar/" + stats.base + "/" + img_armor + ".png").c_str());
+		if (img_main != "") gfx_main = IMG_Load(mods->locate("images/avatar/" + stats.base + "/" + img_main + ".png").c_str());
+		if (img_off != "") gfx_off = IMG_Load(mods->locate("images/avatar/" + stats.base + "/" + img_off + ".png").c_str());
+		gfx_head = IMG_Load(mods->locate("images/avatar/" + stats.base + "/" + stats.head + ".png").c_str());
 
 		SDL_SetColorKey( sprites, SDL_SRCCOLORKEY, SDL_MapRGB(sprites->format, 255, 0, 255) ); 
 		if (gfx_main) SDL_SetColorKey( gfx_main, SDL_SRCCOLORKEY, SDL_MapRGB(gfx_main->format, 255, 0, 255) ); 
@@ -136,21 +159,45 @@ void Avatar::loadGraphics(string _img_main, string _img_armor, string _img_off) 
 }
 
 void Avatar::loadSounds() {
-	sound_melee = Mix_LoadWAV((PATH_DATA + "soundfx/melee_attack.ogg").c_str());
-	sound_hit = Mix_LoadWAV((PATH_DATA + "soundfx/" + stats.base + "_hit.ogg").c_str());
-	sound_die = Mix_LoadWAV((PATH_DATA + "soundfx/" + stats.base + "_die.ogg").c_str());
-	sound_block = Mix_LoadWAV((PATH_DATA + "soundfx/powers/block.ogg").c_str());	
-	sound_steps[0] = Mix_LoadWAV((PATH_DATA + "soundfx/step_echo1.ogg").c_str());
-	sound_steps[1] = Mix_LoadWAV((PATH_DATA + "soundfx/step_echo2.ogg").c_str());
-	sound_steps[2] = Mix_LoadWAV((PATH_DATA + "soundfx/step_echo3.ogg").c_str());
-	sound_steps[3] = Mix_LoadWAV((PATH_DATA + "soundfx/step_echo4.ogg").c_str());
-	level_up = Mix_LoadWAV((PATH_DATA + "soundfx/level_up.ogg").c_str());
+	sound_melee = Mix_LoadWAV(mods->locate("soundfx/melee_attack.ogg").c_str());
+	sound_hit = Mix_LoadWAV(mods->locate("soundfx/" + stats.base + "_hit.ogg").c_str());
+	sound_die = Mix_LoadWAV(mods->locate("soundfx/" + stats.base + "_die.ogg").c_str());
+	sound_block = Mix_LoadWAV(mods->locate("soundfx/powers/block.ogg").c_str());
+	level_up = Mix_LoadWAV(mods->locate("soundfx/level_up.ogg").c_str());
 				
-	if (!sound_melee || !sound_hit || !sound_die || !sound_steps[0] || !level_up) {
-	  printf("Mix_LoadWAV: %s\n", Mix_GetError());
+	if (!sound_melee || !sound_hit || !sound_die || !level_up) {
+		printf("Mix_LoadWAV: %s\n", Mix_GetError());
 	}
 	
 }
+
+/**
+ * Walking/running steps sound depends on worn armor
+ */
+void Avatar::loadStepFX(string stepname) {
+	
+	// TODO: put default step sound in engine config file
+	string filename = "cloth";
+	if (stepname != "") {
+		filename = stepname;
+	}
+
+	// clear previous sounds
+	for (int i=0; i<4; i++) {
+		if (sound_steps[i] != NULL) {
+			Mix_FreeChunk(sound_steps[i]);
+			sound_steps[i] = NULL;
+		}
+	}
+	
+	// load new sounds
+	sound_steps[0] = Mix_LoadWAV(mods->locate("soundfx/steps/step_" + filename + "1.ogg").c_str());
+	sound_steps[1] = Mix_LoadWAV(mods->locate("soundfx/steps/step_" + filename + "2.ogg").c_str());
+	sound_steps[2] = Mix_LoadWAV(mods->locate("soundfx/steps/step_" + filename + "3.ogg").c_str());
+	sound_steps[3] = Mix_LoadWAV(mods->locate("soundfx/steps/step_" + filename + "4.ogg").c_str());
+	
+}
+
 
 bool Avatar::pressing_move() {
 	if(MOUSE_MOVE) {
@@ -196,10 +243,15 @@ void Avatar::logic(int actionbar_power, bool restrictPowerUse) {
 	bool allowed_to_use_power;
 	
 	// check level up
-	if (stats.level < 17 && stats.xp >= stats.xp_table[stats.level]) {
+	int max_spendable_stat_points = 16;
+	if (stats.xp >= stats.xp_table[stats.level] && stats.level < MAX_CHARACTER_LEVEL) {
 		stats.level++;
 		stringstream ss;
-		ss << "Congratulations, you have reached level " << stats.level << "! You may increase one attribute through the Character Menu.";
+		ss << msg->get("Congratulations, you have reached level %d!", stats.level);
+		if (stats.level < max_spendable_stat_points) {
+			ss << " " << msg->get("You may increase one attribute through the Character Menu.");
+			newLevelNotification = true;
+		}
 		log_msg = ss.str();
 		stats.recalc();
 		Mix_PlayChannel(-1, level_up, 0);
@@ -212,7 +264,7 @@ void Avatar::logic(int actionbar_power, bool restrictPowerUse) {
 	// check for bleeding to death
 	if (stats.hp == 0 && !(stats.cur_state == AVATAR_DEAD)) {
 		stats.cur_state = AVATAR_DEAD;
-	}		
+	}
 	
 	// assist mouse movement
 	if (!inp->pressing[MAIN1]) drag_walking = false;
@@ -466,7 +518,7 @@ void Avatar::logic(int actionbar_power, bool restrictPowerUse) {
 				
 			if (activeAnimation->getCurFrame() == 1 && activeAnimation->getTimesPlayed() < 1) {
 				Mix_PlayChannel(-1, sound_die, 0);
-				log_msg = "You are defeated.  You lose half your gold.  Press Enter to continue.";
+				log_msg = msg->get("You are defeated.  You lose half your gold.  Press Enter to continue.");
 			}
 
 			if (activeAnimation->getTimesPlayed() >= 1) {
@@ -521,12 +573,6 @@ void Avatar::logic(int actionbar_power, bool restrictPowerUse) {
 bool Avatar::takeHit(Hazard h) {
 
 	if (stats.cur_state != AVATAR_DEAD) {
-	
-		// auto-miss if recently attacked
-		// this is mainly to prevent slow, wide missiles from getting multiple attack attempts
-		if (stats.targeted > 0) return false;
-		stats.targeted = 5;	
-	
 		// check miss
 		int avoidance = stats.avoidance;
 		if (stats.blocking) avoidance *= 2;
@@ -580,10 +626,8 @@ bool Avatar::takeHit(Hazard h) {
 		}
 		
 		// post effect power
-		Point pt;
-		pt.x = pt.y = 0;
 		if (h.post_power >= 0 && dmg > 0) {
-			powers->activate(h.post_power, &stats, pt);
+			powers->activate(h.post_power, h.src_stats, stats.pos);
 		}
 		
 		// Power-specific: Vengeance gains stacks when blocking
@@ -635,6 +679,5 @@ Avatar::~Avatar() {
 	Mix_FreeChunk(sound_steps[3]);
 	Mix_FreeChunk(level_up);
 			
-	delete haz;	
+	delete haz;
 }
-

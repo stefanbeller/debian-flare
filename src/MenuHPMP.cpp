@@ -1,26 +1,51 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * MenuHPMP
  *
  * Handles the display of the HP and MP bars at the top/left of the screen
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "MenuHPMP.h"
+#include "SharedResources.h"
 
-MenuHPMP::MenuHPMP(SDL_Surface *_screen, FontEngine *_font) {
-	screen = _screen;
-	font = _font;
+#include <string>
+#include <sstream>
+
+
+using namespace std;
+
+
+MenuHPMP::MenuHPMP() {
 	
+	hphover = new WidgetLabel();
+	mphover = new WidgetLabel();
+	hphover->set(53, 9, JUSTIFY_CENTER, VALIGN_CENTER, "", FONT_WHITE);
+	mphover->set(53, 24, JUSTIFY_CENTER, VALIGN_CENTER, "", FONT_WHITE);
+
 	loadGraphics();
 }
 
 void MenuHPMP::loadGraphics() {
 
-	background = IMG_Load((PATH_DATA + "images/menus/bar_hp_mp.png").c_str());
-	bar_hp = IMG_Load((PATH_DATA + "images/menus/bar_hp.png").c_str());
-	bar_mp = IMG_Load((PATH_DATA + "images/menus/bar_mp.png").c_str());
+	background = IMG_Load(mods->locate("images/menus/bar_hp_mp.png").c_str());
+	bar_hp = IMG_Load(mods->locate("images/menus/bar_hp.png").c_str());
+	bar_mp = IMG_Load(mods->locate("images/menus/bar_mp.png").c_str());
 	
 	if(!background || !bar_hp || !bar_mp) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
@@ -39,7 +64,6 @@ void MenuHPMP::loadGraphics() {
 	cleanup = bar_mp;
 	bar_mp = SDL_DisplayFormatAlpha(bar_mp);
 	SDL_FreeSurface(cleanup);
-	
 }
 
 void MenuHPMP::render(StatBlock *stats, Point mouse) {
@@ -85,11 +109,13 @@ void MenuHPMP::render(StatBlock *stats, Point mouse) {
 
 		stringstream ss;
 		ss << stats->hp << "/" << stats->maxhp;
-		font->render(ss.str(), 53,4,JUSTIFY_CENTER, screen, FONT_WHITE);
+		hphover->set(ss.str());
+		hphover->render();
+
 		ss.str("");
 		ss << stats->mp << "/" << stats->maxmp;
-		font->render(ss.str(), 53,19,JUSTIFY_CENTER, screen, FONT_WHITE);
-	 
+		mphover->set(ss.str());
+		mphover->render();
 	}
 }
 
@@ -97,6 +123,6 @@ MenuHPMP::~MenuHPMP() {
 	SDL_FreeSurface(background);
 	SDL_FreeSurface(bar_hp);
 	SDL_FreeSurface(bar_mp);
-	
+	delete hphover;
+	delete mphover;
 }
-

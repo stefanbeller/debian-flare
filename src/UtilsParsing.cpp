@@ -1,3 +1,20 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 #include "UtilsParsing.h"
 using namespace std;
 
@@ -92,7 +109,7 @@ string trim(string s, char c) {
 	while (s.at(first) == c && first < s.length()-1) {
 		first++;
 	}
-	while (s.at(last) == c && last >= first) {
+	while (s.at(last) == c && last >= first && last > 0) {
 		last--;
 	}
 	if (first <= last) return s.substr(first,last-first+1);
@@ -100,13 +117,13 @@ string trim(string s, char c) {
 }
 
 string parse_section_title(string s) {
-	unsigned int bracket = s.find_first_of(']');
+	size_t bracket = s.find_first_of(']');
 	if (bracket == string::npos) return ""; // not found
 	return s.substr(1, bracket-1);
 }
 
 void parse_key_pair(string s, string &key, string &val) {
-	unsigned int separator = s.find_first_of('=');
+	size_t separator = s.find_first_of('=');
 	if (separator == string::npos) {
 		key = "";
 		val = "";
@@ -125,7 +142,7 @@ void parse_key_pair(string s, string &key, string &val) {
  * This is basically a really lazy "split" replacement
  */
 int eatFirstInt(string &s, char separator) {
-	int seppos = s.find_first_of(separator);
+	size_t seppos = s.find_first_of(separator);
 	if (seppos == string::npos) {
 		s = "";
 		return 0; // not found
@@ -136,7 +153,7 @@ int eatFirstInt(string &s, char separator) {
 }
 
 unsigned short eatFirstHex(string &s, char separator) {
-	int seppos = s.find_first_of(separator);
+	size_t seppos = s.find_first_of(separator);
 	if (seppos == string::npos) {
 		s = "";
 		return 0; // not found
@@ -147,10 +164,22 @@ unsigned short eatFirstHex(string &s, char separator) {
 }
 
 string eatFirstString(string &s, char separator) {
-	int seppos = s.find_first_of(separator);
+	size_t seppos = s.find_first_of(separator);
 	if (seppos == string::npos) return ""; // not found
 	string outs = s.substr(0, seppos);
 	s = s.substr(seppos+1, s.length());
+	return outs;
+}
+
+// similar to eatFirstString but does not alter the input string
+string getNextToken(string s, size_t &cursor, char separator) {
+	size_t seppos = s.find_first_of(separator, cursor);
+	if (seppos == string::npos) { // not found
+		cursor = string::npos;
+		return "";
+	}
+	string outs = s.substr(cursor, seppos-cursor);
+	cursor = seppos+1;
 	return outs;
 }
 

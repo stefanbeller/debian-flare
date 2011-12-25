@@ -1,19 +1,37 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class PowerManager
- *
- * @author Clint Bellanger
- * @license GPL
  */
-
 
 #include "PowerManager.h"
 #include "FileParser.h"
+#include "SharedResources.h"
+#include "UtilsFileSystem.h"
+
+using namespace std;
+
 
 /**
  * PowerManager constructor
  */
 PowerManager::PowerManager() {
-	
+
 	gfx_count = 0;
 	sfx_count = 0;
 	for (int i=0; i<POWER_MAX_GFX; i++) {
@@ -22,30 +40,47 @@ PowerManager::PowerManager() {
 	for (int i=0; i<POWER_MAX_SFX; i++) {
 		sfx[i] = NULL;
 	}
-	
-	powers[POWER_VENGEANCE].name = "Vengeance";
+
+	// TODO: generalize Vengeance
 	powers[POWER_VENGEANCE].type = POWTYPE_SINGLE;
-	powers[POWER_VENGEANCE].icon = 17;
-	powers[POWER_VENGEANCE].description = "After blocking, unlease a deadly and accurate counter-attack";
-	powers[POWER_VENGEANCE].new_state = POWSTATE_SWING;
-	powers[POWER_VENGEANCE].face = true;
-	powers[POWER_VENGEANCE].requires_mp = 1;
-	
+
 	used_item=-1;
 	
 	loadGraphics();
-	loadPowers();
+	loadAll();
 }
 
 /**
- * All powers are defined in powers/powers.txt
+ * Load all powers files in all mods
  */
-void PowerManager::loadPowers() {
+void PowerManager::loadAll() {
+
+	string test_path;
+
+	// load each items.txt file. Individual item IDs can be overwritten with mods.
+	for (unsigned int i = 0; i < mods->mod_list.size(); i++) {
+
+		test_path = PATH_DATA + "mods/" + mods->mod_list[i] + "/powers/powers.txt";
+
+		if (fileExists(test_path)) {
+			this->loadPowers(test_path);
+		}
+	}
+
+}
+
+
+/**
+ * Powers are defined in [mod]/powers/powers.txt
+ *
+ * @param filename The full path and filename to this powers.txt file
+ */
+void PowerManager::loadPowers(const std::string& filename) {
 
 	FileParser infile;
 	int input_id = 0;
 	
-	if (infile.open((PATH_DATA + "powers/powers.txt").c_str())) {
+	if (infile.open(filename.c_str())) {
 		while (infile.next()) {
 			// id needs to be the first component of each power.  That is how we write
 			// data to the correct power.
@@ -59,10 +94,10 @@ void PowerManager::loadPowers() {
 				else if (infile.val == "repeater") powers[input_id].type = POWTYPE_REPEATER;
 			}
 			else if (infile.key == "name") {
-				powers[input_id].name = infile.val;
+				powers[input_id].name = msg->get(infile.val);
 			}
 			else if (infile.key == "description") {
-				powers[input_id].description = infile.val;
+				powers[input_id].description = msg->get(infile.val);
 			}
 			else if (infile.key == "icon") {
 				powers[input_id].icon = atoi(infile.val.c_str());
@@ -76,7 +111,14 @@ void PowerManager::loadPowers() {
 			else if (infile.key == "face") {
 				if (infile.val == "true") powers[input_id].face = true;
 			}
-			
+			else if (infile.key == "source_type") {
+				if (infile.val == "hero") powers[input_id].source_type = SOURCE_TYPE_HERO;
+				else if (infile.val == "neutral") powers[input_id].source_type = SOURCE_TYPE_NEUTRAL;
+				else if (infile.val == "enemy") powers[input_id].source_type = SOURCE_TYPE_ENEMY;
+			}
+			else if (infile.key == "beacon") {
+				if (infile.val == "true") powers[input_id].beacon = true;
+			}
 			// power requirements
 			else if (infile.key == "requires_physical_weapon") {
 				if (infile.val == "true") powers[input_id].requires_physical_weapon = true;
@@ -305,7 +347,7 @@ void PowerManager::loadPowers() {
  * @param filename The .png file containing sprites for this power, assumed to be in images/powers/
  * @return The gfx[] array index for this graphic, or -1 upon load failure
  */
-int PowerManager::loadGFX(string filename) {
+int PowerManager::loadGFX(const string& filename) {
 	
 	// currently we restrict the total number of unique power sprite sets
 	if (gfx_count == POWER_MAX_GFX) return -1;
@@ -318,7 +360,7 @@ int PowerManager::loadGFX(string filename) {
 	}
 
 	// we don't already have this sprite loaded, so load it
-	gfx[gfx_count] = IMG_Load((PATH_DATA + "images/powers/" + filename).c_str());
+	gfx[gfx_count] = IMG_Load(mods->locate("images/powers/" + filename).c_str());
 	if(!gfx[gfx_count]) {
 		fprintf(stderr, "Couldn't load power sprites: %s\n", IMG_GetError());
 		return -1;
@@ -341,7 +383,7 @@ int PowerManager::loadGFX(string filename) {
  * @param filename The .ogg file containing the sound for this power, assumed to be in soundfx/powers/
  * @return The sfx[] array index for this mix chunk, or -1 upon load failure
  */
-int PowerManager::loadSFX(string filename) {
+int PowerManager::loadSFX(const string& filename) {
 	
 	// currently we restrict the total number of unique power sounds
 	if (sfx_count == POWER_MAX_SFX) return -1;
@@ -354,7 +396,7 @@ int PowerManager::loadSFX(string filename) {
 	}
 
 	// we don't already have this sound loaded, so load it
-	sfx[sfx_count] = Mix_LoadWAV((PATH_DATA + "soundfx/powers/" + filename).c_str());
+	sfx[sfx_count] = Mix_LoadWAV(mods->locate("soundfx/powers/" + filename).c_str());
 	if(!sfx[sfx_count]) {
 		fprintf(stderr, "Couldn't load power soundfx: %s\n", filename.c_str());
 		return -1;
@@ -369,7 +411,7 @@ int PowerManager::loadSFX(string filename) {
 
 void PowerManager::loadGraphics() {
 
-	runes = IMG_Load((PATH_DATA + "images/powers/runes.png").c_str());
+	runes = IMG_Load(mods->locate("images/powers/runes.png").c_str());
 	
 	if(!runes) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
@@ -462,6 +504,16 @@ void PowerManager::initHazard(int power_index, StatBlock *src_stats, Point targe
 
 	//the hazard holds the statblock of its source
 	haz->src_stats = src_stats;
+
+	haz->power_index = power_index;
+
+	if (powers[power_index].source_type == -1){
+		if (src_stats->hero) haz->source_type = SOURCE_TYPE_HERO;
+		else haz->source_type = SOURCE_TYPE_ENEMY;
+	}
+	else {
+		haz->source_type = powers[power_index].source_type;
+	}
 
 	// Hazard attributes based on power source
 	haz->crit_chance = src_stats->crit;
@@ -667,8 +719,6 @@ void PowerManager::buff(int power_index, StatBlock *src_stats, Point target) {
 		src_stats->hot_duration = powers[power_index].hot_duration;
 		src_stats->hot_value = powers[power_index].hot_value;
 	}
-	
-	
 }
 
 /**
@@ -726,11 +776,9 @@ bool PowerManager::effect(int power_index, StatBlock *src_stats, Point target) {
 	playSound(power_index, src_stats);
 
 	// if all else succeeded, pay costs
-	if (powers[power_index].requires_mp > 0) {
-		src_stats->mp -= powers[power_index].requires_mp;
-	}
-	used_item = powers[power_index].requires_item;
-
+	if (src_stats->hero && powers[power_index].requires_mp > 0) src_stats->mp -= powers[power_index].requires_mp;
+	if (src_stats->hero && powers[power_index].requires_item != -1) used_item = powers[power_index].requires_item;
+	
 	return true;
 }
 
@@ -747,43 +795,53 @@ bool PowerManager::effect(int power_index, StatBlock *src_stats, Point target) {
 bool PowerManager::missile(int power_index, StatBlock *src_stats, Point target) {
 	float pi = 3.1415926535898;
 
-	Hazard *haz[powers[power_index].missile_num];
+	Point src;
+	if (powers[power_index].starting_pos == STARTING_POS_TARGET) {
+		src.x = target.x;
+		src.y = target.y;
+	}
+	else {
+		src.x = src_stats->pos.x;
+		src.y = src_stats->pos.y;
+	}
 
-	// calculate polor coordinates angle
-	float theta = calcTheta(src_stats->pos.x, src_stats->pos.y, target.x, target.y);
+	Hazard *haz;
+
+	// calculate polar coordinates angle
+	float theta = calcTheta(src.x, src.y, target.x, target.y);
 	
 	//generate hazards
 	for (int i=0; i < powers[power_index].missile_num; i++) {
-		haz[i] = new Hazard();
-		Point rot_target;
+		haz = new Hazard();
 
 		//calculate individual missile angle
 		float offset_angle = ((1.0 - powers[power_index].missile_num)/2 + i) * (powers[power_index].missile_angle * pi / 180.0);
 		float variance = 0;
 		if (powers[power_index].angle_variance != 0)
-			variance = pow(-1, (rand() % 2) - 1) * (rand() % powers[power_index].angle_variance) * pi / 180.0; //random between 0 and angle_variance away
+			variance = pow(-1.0f, (rand() % 2) - 1) * (rand() % powers[power_index].angle_variance) * pi / 180.0; //random between 0 and angle_variance away
 		float alpha = theta + offset_angle + variance;
 		while (alpha >= pi+pi) alpha -= pi+pi;
 		while (alpha < 0.0) alpha += pi+pi;
 
-		//calculate animation direction (the UNITS_PER_TILE just reduces round-off error)
-		rot_target.x = (int)(src_stats->pos.x + UNITS_PER_TILE * cos(alpha));
-		rot_target.y = (int)(src_stats->pos.y + UNITS_PER_TILE * sin(alpha));
-
-		initHazard(power_index, src_stats, rot_target, haz[i]);
+		initHazard(power_index, src_stats, target, haz);
 
 		//calculate the missile velocity
 		int speed_var = 0;
 		if (powers[power_index].speed_variance != 0)
-			speed_var = (int)(pow(-1, (rand() % 2) - 1) * (rand() % powers[power_index].speed_variance + 1) - 1);
-		haz[i]->speed.x = (haz[0]->base_speed + speed_var) * cos(alpha);
-		haz[i]->speed.y = (haz[0]->base_speed + speed_var) * sin(alpha);
-		hazards.push(haz[i]);
+			speed_var = (int)(pow(-1.0f, (rand() % 2) - 1) * (rand() % powers[power_index].speed_variance + 1) - 1);
+		haz->speed.x = (haz->base_speed + speed_var) * cos(alpha);
+		haz->speed.y = (haz->base_speed + speed_var) * sin(alpha);
+		
+		//calculate direction based on trajectory, not actual target (UNITS_PER_TILE reduces round off error)
+		if (powers[power_index].directional)
+			haz->direction = calcDirection(src.x, src.y, src.x + UNITS_PER_TILE * haz->speed.x, src.y + UNITS_PER_TILE * haz->speed.y);
+		
+		hazards.push(haz);
 	}
 
-	// pay costs
-	if (powers[power_index].requires_mp>0) src_stats->mp-=powers[power_index].requires_mp;
-	used_item = powers[power_index].requires_item;
+	// if all else succeeded, pay costs
+	if (src_stats->hero && powers[power_index].requires_mp > 0) src_stats->mp -= powers[power_index].requires_mp;
+	if (src_stats->hero && powers[power_index].requires_item != -1) used_item = powers[power_index].requires_item;
 
 	playSound(power_index, src_stats);
 	return true;
@@ -795,9 +853,9 @@ bool PowerManager::missile(int power_index, StatBlock *src_stats, Point target) 
 bool PowerManager::repeater(int power_index, StatBlock *src_stats, Point target) {
 
 	
-	// pay costs
-	if (powers[power_index].requires_mp>0) src_stats->mp-=powers[power_index].requires_mp;
-	used_item = powers[power_index].requires_item;
+	// pay costs up front
+	if (src_stats->hero && powers[power_index].requires_mp > 0) src_stats->mp -= powers[power_index].requires_mp;
+	if (src_stats->hero && powers[power_index].requires_item != -1) used_item = powers[power_index].requires_item;
 	
 	//initialize variables
 	Hazard *haz[10];
@@ -806,7 +864,7 @@ bool PowerManager::repeater(int power_index, StatBlock *src_stats, Point target)
 	int delay_iterator;
 	int map_speed = 64;
 
-	// calculate polor coordinates angle
+	// calculate polar coordinates angle
 	float theta = calcTheta(src_stats->pos.x, src_stats->pos.y, target.x, target.y);
 
 	speed.x = (float)map_speed * cos(theta);
@@ -852,14 +910,8 @@ bool PowerManager::repeater(int power_index, StatBlock *src_stats, Point target)
 bool PowerManager::single(int power_index, StatBlock *src_stats, Point target) {
 	
 	Hazard *haz = new Hazard();
-	
-	// common to all singles
-	haz->pos.x = (float)target.x;
-	haz->pos.y = (float)target.y;
-	haz->lifespan = 1;
-	haz->crit_chance = src_stats->crit;
-	haz->accuracy = src_stats->accuracy;
-	haz->src_stats = src_stats;
+
+	initHazard(power_index, src_stats, target, haz);
 
 	// specific powers have different stats here
 	if (power_index == POWER_VENGEANCE) {
@@ -887,6 +939,11 @@ bool PowerManager::single(int power_index, StatBlock *src_stats, Point target) {
  */
 bool PowerManager::activate(int power_index, StatBlock *src_stats, Point target) {
 
+	if (src_stats->hero) {
+		if (powers[power_index].requires_mp > src_stats->mp)
+			return false;
+	}
+	
 	// logic for different types of powers are very different.  We allow these
 	// separate functions to handle the details.
 	if (powers[power_index].type == POWTYPE_SINGLE)

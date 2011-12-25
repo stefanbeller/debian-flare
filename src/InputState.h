@@ -1,25 +1,46 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class InputState
  *
  * Handles keyboard and mouse states
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #ifndef INPUT_STATE_H
 #define INPUT_STATE_H
 
-#define JOY_MIN         -32768
-#define JOY_MAX         32767
-#define JOY_DEADZONE    100
-
-#include <string>
-#include <fstream>
-#include "SDL.h"
 #include "FileParser.h"
 #include "Utils.h"
 #include "UtilsParsing.h"
+#include "Settings.h"
+
+#include <SDL.h>
+#include <string>
+
+
+#define JOY_DEADZONE	100
+
+#define JOY_POS_CENTER	0
+#define JOY_POS_LEFT	-1
+#define JOY_POS_RIGHT	1
+#define JOY_POS_UP	-1
+#define JOY_POS_DOWN	1
+
 
 // Input commands enum
 const int CANCEL = 0;
@@ -46,7 +67,7 @@ const int MAIN1 = 20;
 const int MAIN2 = 21;
 const int CTRL = 22;
 const int SHIFT = 23;
-const int DELETE = 24;
+const int DEL = 24;
 
 class InputState {
 private:
@@ -65,7 +86,7 @@ public:
 	
 	bool done;
 	Point mouse;
-	string inkeys;
+	std::string inkeys;
 };
 
 #endif

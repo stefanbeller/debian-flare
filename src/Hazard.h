@@ -1,41 +1,69 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class Hazard
  *
  * Stand-alone object that can harm the hero or creatures
  * These are generated whenever something makes any attack
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #ifndef HAZARD_H
 #define HAZARD_H
 
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
+class Entity;
+
+#include <vector>
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
 #include "Utils.h"
 #include "MapCollision.h"
 #include "StatBlock.h"
 
+// the spell/power's source type: eg. which team did it come from?
+const int SOURCE_TYPE_HERO = 0;
+const int SOURCE_TYPE_NEUTRAL = 1;
+const int SOURCE_TYPE_ENEMY = 2;
+
 class Hazard {
 private:
 	MapCollision *collider;
+	// Keeps track of entities already hit
+	std::vector<Entity*> entitiesCollided;
+      
 public:
 	Hazard();
-	
+
 	StatBlock *src_stats;
 
 	SDL_Surface *sprites;
 	void setCollision(MapCollision *_collider);
 	void logic();
-
-	//int enemyIndex; //don't know what this does... doesn't look like it's ever used.
 	
+	bool hasEntity(Entity*);
+	
+	void addEntity(Entity*);
+
 	int dmg_min;
 	int dmg_max;
 	int crit_chance;
 	int accuracy;
+	int source_type;
 	
 	FPoint pos;
 	FPoint speed;
@@ -84,6 +112,7 @@ public:
 	int wall_power;
 	
 	bool equipment_modified;
+	
 };
 
 #endif

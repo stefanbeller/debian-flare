@@ -1,17 +1,35 @@
+/*
+Copyright 2011 Pavel Kirpichyov (Cheshire)
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * MenuEnemy
  *
  * Handles the display of the Enemy bar on the HUD
- *
- * @author Pavel Kirpichyov (Cheshire)
- * @license GPL
  */
 
 #include "MenuEnemy.h"
+#include "SharedResources.h"
+#include "WidgetLabel.h"
 
-MenuEnemy::MenuEnemy(SDL_Surface *_screen, FontEngine *_font) {
-	screen = _screen;
-	font = _font;
+#include <string>
+#include <sstream>
+
+
+MenuEnemy::MenuEnemy() {
 	loadGraphics();
 	enemy = NULL;
 	timeout = 0;
@@ -19,8 +37,8 @@ MenuEnemy::MenuEnemy(SDL_Surface *_screen, FontEngine *_font) {
 
 void MenuEnemy::loadGraphics() {
 
-	background = IMG_Load((PATH_DATA + "images/menus/bar_enemy.png").c_str());
-	bar_hp = IMG_Load((PATH_DATA + "images/menus/bar_hp.png").c_str());
+	background = IMG_Load(mods->locate("images/menus/bar_enemy.png").c_str());
+	bar_hp = IMG_Load(mods->locate("images/menus/bar_hp.png").c_str());
 	
 	if(!background || !bar_hp) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
@@ -81,14 +99,20 @@ void MenuEnemy::render() {
 	SDL_BlitSurface(bar_hp, &src, screen, &dest);
 	
 	stringstream ss;
-	ss << enemy->stats.name << " level " << enemy->stats.level;
-	font->render(ss.str(), VIEW_W_HALF, 4, JUSTIFY_CENTER, screen, FONT_WHITE);
 	ss.str("");
 	if (enemy->stats.hp > 0)
 		ss << enemy->stats.hp << "/" << enemy->stats.maxhp;
 	else
-		ss << "Dead";
-	font->render(ss.str(), VIEW_W_HALF, 19, JUSTIFY_CENTER, screen, FONT_WHITE);
+		ss << msg->get("Dead");
+
+	WidgetLabel label;
+
+	label.set(VIEW_W_HALF, 9, JUSTIFY_CENTER, VALIGN_CENTER, msg->get("%s level %d", enemy->stats.level, enemy->stats.name), FONT_WHITE);
+	label.render();
+
+	label.set(VIEW_W_HALF, 24, JUSTIFY_CENTER, VALIGN_CENTER, ss.str(), FONT_WHITE);
+	label.render();
+
 	
 	//SDL_UpdateRects(screen, 1, &dest);
 }

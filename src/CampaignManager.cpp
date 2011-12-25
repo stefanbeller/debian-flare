@@ -1,13 +1,28 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class CampaignManager
  *
  * Contains data for story mode
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "CampaignManager.h"
+#include "SharedResources.h"
 
 CampaignManager::CampaignManager() {
 
@@ -42,7 +57,7 @@ void CampaignManager::setAll(std::string s) {
 	string token;
 	while (str != "" && status_count < MAX_STATUS) {
 		token = eatFirstString(str, ',');
-		if (token != "") status[status_count++] = token;
+		if (token != "") this->setStatus(token);
 	}
 	quest_update = true;
 }
@@ -122,13 +137,11 @@ void CampaignManager::rewardItem(ItemStack istack) {
 	}
 	else {
 		carried_items->add(istack);
-	
-		stringstream ss;
-		ss.str("");
-		ss << "You receive " << items->items[istack.item].name;
-		if (istack.quantity > 1) ss << " x" << istack.quantity;
-		ss << ".";
-		addMsg(ss.str());
+
+		if (istack.quantity <= 1)
+			addMsg(msg->get("You receive %s.", items->items[istack.item].name));
+		if (istack.quantity > 1)
+			addMsg(msg->get("You receive %s x%d.", istack.quantity, items->items[istack.item].name));
 		
 		items->playSound(istack.item);
 	}
@@ -136,27 +149,18 @@ void CampaignManager::rewardItem(ItemStack istack) {
 
 void CampaignManager::rewardCurrency(int amount) {
 	*currency += amount;
-	
-	stringstream ss;
-	ss.str("");
-	ss << "You receive " << amount << " gold.";
-	addMsg(ss.str());
-	
+	addMsg(msg->get("You receive %d gold.", amount));
 	items->playCoinsSound();
 }
 
 void CampaignManager::rewardXP(int amount) {
 	*xp += amount;
-	
-	stringstream ss;
-	ss.str("");
-	ss << "You receive " << amount << " XP.";
-	addMsg(ss.str());
+	addMsg(msg->get("You receive %d XP.", amount));
 }	
 
-void CampaignManager::addMsg(string msg) {
+void CampaignManager::addMsg(string new_msg) {
 	if (log_msg != "") log_msg += " ";
-	log_msg += msg;
+	log_msg += new_msg;
 }
 
 CampaignManager::~CampaignManager() {

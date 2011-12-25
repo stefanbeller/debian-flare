@@ -1,25 +1,38 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class ActionBar
  *
  * Handles the config, display, and usage of the 0-9 hotkeys, mouse buttons, and menu calls
- *
- * @author Clint Bellanger
- * @license GPL
  */
  
 #ifndef MENU_ACTION_BAR_H
 #define MENU_ACTION_BAR_H
 
-#include <string>
-#include "SDL.h"
-#include "SDL_image.h"
 #include "InputState.h"
-#include "MenuTooltip.h"
+#include "WidgetTooltip.h"
 #include "PowerManager.h"
 #include "FontEngine.h"
 #include "StatBlock.h"
-#include <string>
-#include <sstream>
+#include "SharedResources.h"
+
+#include <SDL.h>
+#include <SDL_image.h>
 
 const int MENU_CHARACTER = 0;
 const int MENU_INVENTORY = 1;
@@ -28,16 +41,17 @@ const int MENU_LOG = 3;
 
 class MenuActionBar {
 private:
-	SDL_Surface *screen;
+	void renderCooldowns();
+	void renderItemCounts();
+
 	SDL_Surface *background;
 	SDL_Surface *emptyslot;
 	SDL_Surface *icons;
 	SDL_Surface *disabled;
+    SDL_Surface *attention;
 	
 	StatBlock *hero;
 	PowerManager *powers;
-	InputState *inp;
-	FontEngine *font;
 	SDL_Rect src;
 	SDL_Rect label_src;
 	
@@ -46,13 +60,13 @@ private:
 	
 public:
 
-	MenuActionBar(SDL_Surface *_screen, FontEngine *_font, InputState *_inp, PowerManager *_powers, StatBlock *hero, SDL_Surface *icons);
+	MenuActionBar(PowerManager *_powers, StatBlock *hero, SDL_Surface *icons);
 	~MenuActionBar();
 	void loadGraphics();
 	void renderIcon(int icon_id, int x, int y);
+	void renderAttention(int menu_id);
 	void logic();
 	void render();
-	void renderItemCounts();
 	int checkAction(Point mouse);
 	int checkDrag(Point mouse);
 	void checkMenu(Point mouse, bool &menu_c, bool &menu_i, bool &menu_p, bool &menu_l);
@@ -68,6 +82,7 @@ public:
 	SDL_Rect menus[4]; // the location of the menu buttons
 	int slot_item_count[12]; // -1 means this power isn't item based.  0 means out of items.  1+ means sufficient items.
 	bool slot_enabled[12];
+    bool requires_attention[4];
 	
 	// these store the area occupied by these hotslot sections.
 	// useful for detecting mouse interactions on those locations

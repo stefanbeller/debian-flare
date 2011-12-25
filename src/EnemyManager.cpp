@@ -1,12 +1,26 @@
 /*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
+/*
  * class EnemyManager
- *
- * @author Clint Bellanger
- * @license GPL
- *
  */
 
 #include "EnemyManager.h"
+#include "SharedResources.h"
 
 EnemyManager::EnemyManager(PowerManager *_powers, MapIso *_map) {
 	powers = _powers;
@@ -25,7 +39,7 @@ EnemyManager::EnemyManager(PowerManager *_powers, MapIso *_map) {
  * Enemies share graphic/sound resources (usually there are groups of similar enemies)
  */
 void EnemyManager::loadGraphics(string type_id) {
-	
+
 	// TODO: throw an error if a map tries to use too many monsters
 	if (gfx_count == max_gfx) return;
 	
@@ -36,7 +50,7 @@ void EnemyManager::loadGraphics(string type_id) {
 		}
 	}
 
-	sprites[gfx_count] = IMG_Load((PATH_DATA + "images/enemies/" + type_id + ".png").c_str());
+	sprites[gfx_count] = IMG_Load(mods->locate("images/enemies/" + type_id + ".png").c_str());
 	if(!sprites[gfx_count]) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
 		SDL_Quit();
@@ -57,19 +71,19 @@ void EnemyManager::loadSounds(string type_id) {
 
 	// TODO: throw an error if a map tries to use too many monsters
 	if (sfx_count == max_sfx) return;
-	
+
 	// first check to make sure the sprite isn't already loaded
 	for (int i=0; i<sfx_count; i++) {
 		if (sfx_prefixes[i] == type_id) {
 			return; // already have this one
 		}
 	}
-	
-	sound_phys[sfx_count] = Mix_LoadWAV((PATH_DATA + "soundfx/enemies/" + type_id + "_phys.ogg").c_str());
-	sound_ment[sfx_count] = Mix_LoadWAV((PATH_DATA + "soundfx/enemies/" + type_id + "_ment.ogg").c_str());
-	sound_hit[sfx_count] = Mix_LoadWAV((PATH_DATA + "soundfx/enemies/" + type_id + "_hit.ogg").c_str());
-	sound_die[sfx_count] = Mix_LoadWAV((PATH_DATA + "soundfx/enemies/" + type_id + "_die.ogg").c_str());
-	sound_critdie[sfx_count] = Mix_LoadWAV((PATH_DATA + "soundfx/enemies/" + type_id + "_critdie.ogg").c_str());
+
+	sound_phys[sfx_count] = Mix_LoadWAV(mods->locate("soundfx/enemies/" + type_id + "_phys.ogg").c_str());
+	sound_ment[sfx_count] = Mix_LoadWAV(mods->locate("soundfx/enemies/" + type_id + "_ment.ogg").c_str());
+	sound_hit[sfx_count] = Mix_LoadWAV(mods->locate("soundfx/enemies/" + type_id + "_hit.ogg").c_str());
+	sound_die[sfx_count] = Mix_LoadWAV(mods->locate("soundfx/enemies/" + type_id + "_die.ogg").c_str());
+	sound_critdie[sfx_count] = Mix_LoadWAV(mods->locate("soundfx/enemies/" + type_id + "_critdie.ogg").c_str());
 	
 	sfx_prefixes[sfx_count] = type_id;
 	sfx_count++;
@@ -130,24 +144,32 @@ void EnemyManager::handleNewMap () {
  * perform logic() for all enemies
  */
 void EnemyManager::logic() {
-	int pref_id;
-
 	for (int i=0; i<enemy_count; i++) {
-	
+
+		int pref_id = -1;
+
 		// hazards are processed after Avatar and Enemy[]
 		// so process and clear sound effects from previous frames
 		// check sound effects
 		for (int j=0; j<sfx_count; j++) {
-			if (sfx_prefixes[j] == enemies[i]->stats.sfx_prefix)
+			if (sfx_prefixes[j] == enemies[i]->stats.sfx_prefix) {
 				pref_id = j;
+				break;
+			}
 		}
-		
-		if (enemies[i]->sfx_phys) Mix_PlayChannel(-1, sound_phys[pref_id], 0);
-		if (enemies[i]->sfx_ment) Mix_PlayChannel(-1, sound_ment[pref_id], 0);
-		if (enemies[i]->sfx_hit) Mix_PlayChannel(-1, sound_hit[pref_id], 0);
-		if (enemies[i]->sfx_die) Mix_PlayChannel(-1, sound_die[pref_id], 0);		
-		if (enemies[i]->sfx_critdie) Mix_PlayChannel(-1, sound_critdie[pref_id], 0);		
-		
+
+		if (pref_id == -1) {
+			printf("ERROR: enemy sfx_prefix doesn't match registered prefixes (enemy: '%s', sfx_prefix: '%s')\n",
+			       enemies[i]->stats.name.c_str(),
+			       enemies[i]->stats.sfx_prefix.c_str());
+		} else {
+			if (enemies[i]->sfx_phys) Mix_PlayChannel(-1, sound_phys[pref_id], 0);
+			if (enemies[i]->sfx_ment) Mix_PlayChannel(-1, sound_ment[pref_id], 0);
+			if (enemies[i]->sfx_hit) Mix_PlayChannel(-1, sound_hit[pref_id], 0);
+			if (enemies[i]->sfx_die) Mix_PlayChannel(-1, sound_die[pref_id], 0);
+			if (enemies[i]->sfx_critdie) Mix_PlayChannel(-1, sound_critdie[pref_id], 0);
+		}
+
 		// clear sound flags
 		enemies[i]->sfx_hit = false;
 		enemies[i]->sfx_phys = false;
@@ -228,6 +250,4 @@ EnemyManager::~EnemyManager() {
 		Mix_FreeChunk(sound_die[i]);
 		Mix_FreeChunk(sound_critdie[i]);
 	}
-
 }
-

@@ -1,8 +1,22 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 #include "Utils.h"
 using namespace std;
-
-#include <sys/types.h>
-#include <sys/stat.h>
 
 int round(float f) {
 	return (int)(f + 0.5);
@@ -202,9 +216,41 @@ void drawPixel(SDL_Surface *screen, int x, int y, Uint32 color) {
 }
 
 /**
- * Check to see if a directory exists
+ * create blank surface
+ * based on example: http://www.libsdl.org/docs/html/sdlcreatergbsurface.html
  */
-bool dirExists(string path) {
-	struct stat st;
-	return (stat(path.c_str(), &st) == 0);
+SDL_Surface* createSurface(int width, int height) {
+
+    SDL_Surface *surface;
+    Uint32 rmask, gmask, bmask, amask;
+
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+    rmask = 0xff000000;
+    gmask = 0x00ff0000;
+    bmask = 0x0000ff00;
+    amask = 0x000000ff;
+#else
+    rmask = 0x000000ff;
+    gmask = 0x0000ff00;
+    bmask = 0x00ff0000;
+    amask = 0xff000000;
+#endif
+
+	if (HWSURFACE) 
+		surface = SDL_CreateRGBSurface(SDL_HWSURFACE|SDL_SRCALPHA, width, height, 32, rmask, gmask, bmask, amask);
+	else
+		surface = SDL_CreateRGBSurface(SDL_SWSURFACE|SDL_SRCALPHA, width, height, 32, rmask, gmask, bmask, amask);	
+	
+    if(surface == NULL) {
+        fprintf(stderr, "CreateRGBSurface failed: %s\n", SDL_GetError());
+    }
+	
+	// optimize
+	SDL_Surface *cleanup = surface;
+	surface = SDL_DisplayFormatAlpha(surface);
+	SDL_FreeSurface(cleanup);
+
+	return surface;
 }
+
+

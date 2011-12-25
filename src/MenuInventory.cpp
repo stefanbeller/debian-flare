@@ -1,16 +1,34 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class MenuInventory
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "MenuInventory.h"
+#include "SharedResources.h"
+#include "WidgetLabel.h"
 
-MenuInventory::MenuInventory(SDL_Surface *_screen, InputState *_inp, FontEngine *_font, ItemDatabase *_items, StatBlock *_stats, PowerManager *_powers) {
-	screen = _screen;
-	inp = _inp;
-	font = _font;
+#include <sstream>
+
+using namespace std;
+
+
+MenuInventory::MenuInventory(ItemManager *_items, StatBlock *_stats, PowerManager *_powers) {
 	items = _items;
 	stats = _stats;
 	powers = _powers;
@@ -33,8 +51,8 @@ MenuInventory::MenuInventory(SDL_Surface *_screen, InputState *_inp, FontEngine 
 	carried_area.w = 256;
 	carried_area.h = 256;
 
-	inventory[EQUIPMENT].init(MAX_EQUIPPED, items, screen, font, equipped_area, ICON_SIZE_64, 4);
-	inventory[CARRIED].init(MAX_CARRIED, items, screen, font, carried_area, ICON_SIZE_32, 8);
+	inventory[EQUIPMENT].init(MAX_EQUIPPED, items, equipped_area, ICON_SIZE_64, 4);
+	inventory[CARRIED].init(MAX_CARRIED, items, carried_area, ICON_SIZE_32, 8);
 	
 	gold = 0;
 	
@@ -43,15 +61,14 @@ MenuInventory::MenuInventory(SDL_Surface *_screen, InputState *_inp, FontEngine 
 	changed_artifact = true;
 	log_msg = "";
 	
-	closeButton = new WidgetButton(screen, font, inp, "images/menus/buttons/button_x.png");
+	closeButton = new WidgetButton(mods->locate("images/menus/buttons/button_x.png"));
 	closeButton->pos.x = VIEW_W - 26;
 	closeButton->pos.y = (VIEW_H - 480)/2 + 34;
-
 }
 
 void MenuInventory::loadGraphics() {
 
-	background = IMG_Load((PATH_DATA + "images/menus/inventory.png").c_str());
+	background = IMG_Load(mods->locate("images/menus/inventory.png").c_str());
 	if(!background) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
 		SDL_Quit();
@@ -86,7 +103,6 @@ void MenuInventory::render() {
 	if (!visible) return;
 	
 	SDL_Rect src;
-	stringstream ss;
 	
 	// background
 	src.x = 0;
@@ -99,15 +115,19 @@ void MenuInventory::render() {
 	closeButton->render();
 	
 	// text overlay
-	// TODO: translate()
-	font->render("Inventory", window_area.x+160, window_area.y+8, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Main Hand", window_area.x+64, window_area.y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Body", window_area.x+128, window_area.y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Off Hand", window_area.x+192, window_area.y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Artifact", window_area.x+256, window_area.y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
-	
-	ss << gold << " Gold";
-	font->render(ss.str(), window_area.x+288, window_area.y+114, JUSTIFY_RIGHT, screen, FONT_WHITE);
+	WidgetLabel label;
+	label.set(window_area.x+160, window_area.y+8, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Inventory"), FONT_WHITE);
+	label.render();
+	label.set(window_area.x+64, window_area.y+34, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Main Hand"), FONT_WHITE);
+	label.render();
+	label.set(window_area.x+128, window_area.y+34, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Body"), FONT_WHITE);
+	label.render();
+	label.set(window_area.x+192, window_area.y+34, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Off Hand"), FONT_WHITE);
+	label.render();
+	label.set(window_area.x+256, window_area.y+34, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Artifact"), FONT_WHITE);
+	label.render();
+	label.set(window_area.x+288, window_area.y+114, JUSTIFY_RIGHT, VALIGN_TOP, msg->get("%d Gold", gold), FONT_WHITE);
+	label.render();
 
 	inventory[EQUIPMENT].render();
 	inventory[CARRIED].render();
@@ -138,8 +158,8 @@ TooltipData MenuInventory::checkTooltip(Point mouse) {
 	}
 	else if (mouse.x >= window_area.x + 224 && mouse.y >= window_area.y+96 && mouse.x < window_area.x+288 && mouse.y < window_area.y+128) {
 		// TODO: I think we should add a little "?" icon in a corner, and show this title on it.
-		tip.lines[tip.num_lines++] = "Use SHIFT to move only one item.";
-		tip.lines[tip.num_lines++] = "CTRL-click a carried item to sell it.";
+		tip.lines[tip.num_lines++] = msg->get("Use SHIFT to move only one item.");
+		tip.lines[tip.num_lines++] = msg->get("CTRL-click a carried item to sell it.");
 	}
 	
 	return tip;
@@ -302,7 +322,7 @@ void MenuInventory::activate(InputState * input) {
 		}
 		else {
 			// let player know this can only be used from the action bar
-			log_msg = "This item can only be used from the action bar.";
+			log_msg = msg->get("This item can only be used from the action bar.");
 		}
 		
 	}
@@ -520,20 +540,14 @@ void MenuInventory::updateEquipment(int slot) {
 /**
  * Given the equipped items, calculate the hero's stats
  */
-void MenuInventory::applyEquipment(StatBlock *stats, ItemStack *equipped) {
+void MenuInventory::applyEquipment(ItemStack *equipped) {
 
 	int bonus_counter;
 	
-	// note: these are also defined in MenuInventory.h
-	int SLOT_MAIN = 0;
-	int SLOT_BODY = 1;
-	int SLOT_OFF = 2;
-	//int SLOT_ARTIFACT = 3;
-
 	int prev_hp = stats->hp;
 	int prev_mp = stats->mp;
 
-	Item *items = this->items->items;
+	Item *pc_items = this->items->items;
 
 	// calculate bonuses to basic stats and check that each equipped item fit requirements
 	bool checkRequired = true;
@@ -544,20 +558,20 @@ void MenuInventory::applyEquipment(StatBlock *stats, ItemStack *equipped) {
 		for (int i = 0; i < 4; i++) {
 			int item_id = equipped[i].item;
 			bonus_counter = 0;
-			while (items[item_id].bonus_stat[bonus_counter] != "") {
-				if (items[item_id].bonus_stat[bonus_counter] == "offense")
-					stats->offense_additional += items[item_id].bonus_val[bonus_counter];
-				else if (items[item_id].bonus_stat[bonus_counter] == "defense")
-					stats->defense_additional += items[item_id].bonus_val[bonus_counter];
-				else if (items[item_id].bonus_stat[bonus_counter] == "physical")
-					stats->physical_additional += items[item_id].bonus_val[bonus_counter];
-				else if (items[item_id].bonus_stat[bonus_counter] == "mental")
-					stats->mental_additional += items[item_id].bonus_val[bonus_counter];
-				else if (items[item_id].bonus_stat[bonus_counter] == "all basic stats") {
-					stats->offense_additional += items[item_id].bonus_val[bonus_counter];
-					stats->defense_additional += items[item_id].bonus_val[bonus_counter];
-					stats->physical_additional += items[item_id].bonus_val[bonus_counter];
-					stats->mental_additional += items[item_id].bonus_val[bonus_counter];
+			while (pc_items[item_id].bonus_stat[bonus_counter] != "") {
+				if (pc_items[item_id].bonus_stat[bonus_counter] == "offense")
+					stats->offense_additional += pc_items[item_id].bonus_val[bonus_counter];
+				else if (pc_items[item_id].bonus_stat[bonus_counter] == "defense")
+					stats->defense_additional += pc_items[item_id].bonus_val[bonus_counter];
+				else if (pc_items[item_id].bonus_stat[bonus_counter] == "physical")
+					stats->physical_additional += pc_items[item_id].bonus_val[bonus_counter];
+				else if (pc_items[item_id].bonus_stat[bonus_counter] == "mental")
+					stats->mental_additional += pc_items[item_id].bonus_val[bonus_counter];
+				else if (pc_items[item_id].bonus_stat[bonus_counter] == "all basic stats") {
+					stats->offense_additional += pc_items[item_id].bonus_val[bonus_counter];
+					stats->defense_additional += pc_items[item_id].bonus_val[bonus_counter];
+					stats->physical_additional += pc_items[item_id].bonus_val[bonus_counter];
+					stats->mental_additional += pc_items[item_id].bonus_val[bonus_counter];
 				}
 				bonus_counter++;
 				if (bonus_counter == ITEM_MAX_BONUSES) break;
@@ -593,38 +607,38 @@ void MenuInventory::applyEquipment(StatBlock *stats, ItemStack *equipped) {
 	// main hand weapon
 	int item_id = equipped[SLOT_MAIN].item;
 	if (item_id > 0) {
-		if (items[item_id].req_stat == REQUIRES_PHYS) {
-			stats->dmg_melee_min = items[item_id].dmg_min;
-			stats->dmg_melee_max = items[item_id].dmg_max;
-			stats->melee_weapon_power = items[item_id].power_mod;
+		if (pc_items[item_id].req_stat == REQUIRES_PHYS) {
+			stats->dmg_melee_min = pc_items[item_id].dmg_min;
+			stats->dmg_melee_max = pc_items[item_id].dmg_max;
+			stats->melee_weapon_power = pc_items[item_id].power_mod;
 			stats->wielding_physical = true;
 		}
-		else if (items[item_id].req_stat == REQUIRES_MENT) {
-			stats->dmg_ment_min = items[item_id].dmg_min;
-			stats->dmg_ment_max = items[item_id].dmg_max;
-			stats->mental_weapon_power = items[item_id].power_mod;
+		else if (pc_items[item_id].req_stat == REQUIRES_MENT) {
+			stats->dmg_ment_min = pc_items[item_id].dmg_min;
+			stats->dmg_ment_max = pc_items[item_id].dmg_max;
+			stats->mental_weapon_power = pc_items[item_id].power_mod;
 			stats->wielding_mental = true;
 		}
 	}
 	// off hand item
 	item_id = equipped[SLOT_OFF].item;
 	if (item_id > 0) {
-		if (items[item_id].req_stat == REQUIRES_OFF) {
-			stats->dmg_ranged_min = items[item_id].dmg_min;
-			stats->dmg_ranged_max = items[item_id].dmg_max;
-			stats->ranged_weapon_power = items[item_id].power_mod;
+		if (pc_items[item_id].req_stat == REQUIRES_OFF) {
+			stats->dmg_ranged_min = pc_items[item_id].dmg_min;
+			stats->dmg_ranged_max = pc_items[item_id].dmg_max;
+			stats->ranged_weapon_power = pc_items[item_id].power_mod;
 			stats->wielding_offense = true;
 		}
-		else if (items[item_id].req_stat == REQUIRES_DEF) {
-			stats->absorb_min += items[item_id].abs_min;
-			stats->absorb_max += items[item_id].abs_max;
+		else if (pc_items[item_id].req_stat == REQUIRES_DEF) {
+			stats->absorb_min += pc_items[item_id].abs_min;
+			stats->absorb_max += pc_items[item_id].abs_max;
 		}
 	}
 	// body item
 	item_id = equipped[SLOT_BODY].item;
 	if (item_id > 0) {
-		stats->absorb_min += items[item_id].abs_min;
-		stats->absorb_max += items[item_id].abs_max;
+		stats->absorb_min += pc_items[item_id].abs_min;
+		stats->absorb_max += pc_items[item_id].abs_max;
 	}
 
 
@@ -634,45 +648,45 @@ void MenuInventory::applyEquipment(StatBlock *stats, ItemStack *equipped) {
 		item_id = equipped[i].item;
 	
 		bonus_counter = 0;
-		while (items[item_id].bonus_stat[bonus_counter] != "") {
+		while (pc_items[item_id].bonus_stat[bonus_counter] != "") {
 	
-			if (items[item_id].bonus_stat[bonus_counter] == "HP")
-				stats->maxhp += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "HP regen")
-				stats->hp_per_minute += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "MP")
-				stats->maxmp += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "MP regen")
-				stats->mp_per_minute += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "accuracy")
-				stats->accuracy += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "avoidance")
-				stats->avoidance += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "crit")
-				stats->crit += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "speed") {
-				stats->speed += items[item_id].bonus_val[bonus_counter];
+			if (pc_items[item_id].bonus_stat[bonus_counter] == "HP")
+				stats->maxhp += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "HP regen")
+				stats->hp_per_minute += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "MP")
+				stats->maxmp += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "MP regen")
+				stats->mp_per_minute += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "accuracy")
+				stats->accuracy += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "avoidance")
+				stats->avoidance += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "crit")
+				stats->crit += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "speed") {
+				stats->speed += pc_items[item_id].bonus_val[bonus_counter];
 				// speed bonuses are in multiples of 3
 				// 3 ordinal, 2 diagonal is rounding pythagorus
-				stats->dspeed += ((items[item_id].bonus_val[bonus_counter]) * 2) /3;
+				stats->dspeed += ((pc_items[item_id].bonus_val[bonus_counter]) * 2) /3;
 			}
-			else if (items[item_id].bonus_stat[bonus_counter] == "fire resist")
-				stats->attunement_fire -= items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "ice resist")
-				stats->attunement_ice -= items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "offense")
-				stats->offense_additional += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "defense")
-				stats->defense_additional += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "physical")
-				stats->physical_additional += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "mental")
-				stats->mental_additional += items[item_id].bonus_val[bonus_counter];
-			else if (items[item_id].bonus_stat[bonus_counter] == "all basic stats") {
-				stats->offense_additional += items[item_id].bonus_val[bonus_counter];
-				stats->defense_additional += items[item_id].bonus_val[bonus_counter];
-				stats->physical_additional += items[item_id].bonus_val[bonus_counter];
-				stats->mental_additional += items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "fire resist")
+				stats->attunement_fire -= pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "ice resist")
+				stats->attunement_ice -= pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "offense")
+				stats->offense_additional += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "defense")
+				stats->defense_additional += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "physical")
+				stats->physical_additional += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "mental")
+				stats->mental_additional += pc_items[item_id].bonus_val[bonus_counter];
+			else if (pc_items[item_id].bonus_stat[bonus_counter] == "all basic stats") {
+				stats->offense_additional += pc_items[item_id].bonus_val[bonus_counter];
+				stats->defense_additional += pc_items[item_id].bonus_val[bonus_counter];
+				stats->physical_additional += pc_items[item_id].bonus_val[bonus_counter];
+				stats->mental_additional += pc_items[item_id].bonus_val[bonus_counter];
 			}
 			
 			bonus_counter++;

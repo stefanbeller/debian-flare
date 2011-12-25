@@ -1,9 +1,22 @@
 /*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
+/*
  * class Enemy
- *
- * @author Clint Bellanger
- * @license GPL
- *
  */
 
 #include "Enemy.h"
@@ -100,19 +113,24 @@ void Enemy::logic() {
 	if (stats.bleed_duration % 30 == 1) {
 		powers->activate(POWER_SPARK_BLOOD, &stats, stats.pos);
 	}
+	
 	// check for teleport powers
 	if (stats.teleportation) {
+		
 		stats.pos.x = stats.teleport_destination.x;
 		stats.pos.y = stats.teleport_destination.y;	
+		
 		stats.teleportation = false;	
 	}
 	
 	int dist;
 	int prev_direction;
 	bool los = false;
-	Point pursue_pos;	
-	//int max_frame;
-	//int mid_frame;
+	Point pursue_pos;
+	
+	// set a default pursue_pos, all else failing (used in targeting)
+	pursue_pos.x = stats.hero_pos.x;
+	pursue_pos.y = stats.hero_pos.y;
 	
 	
 	// SECTION 1: Steering and Vision
@@ -130,19 +148,26 @@ void Enemy::logic() {
 		stats.patrol_ticks = 0;
 		stats.last_seen.x = -1;
 		stats.last_seen.y = -1;
+		
+		// heal rapidly if the hero has left range
+		if (stats.alive && stats.hero_alive) {
+			stats.hp++;
+			if (stats.hp > stats.maxhp) stats.hp = stats.maxhp;
+		}
 	}
 
 	if (dist < stats.threat_range && stats.hero_alive)
 		los = map->collider.line_of_sight(stats.pos.x, stats.pos.y, stats.hero_pos.x, stats.hero_pos.y);
 	else
 		los = false;
-		
+
 	// if the enemy can see the hero, it pursues.
 	// otherwise, it will head towards where it last saw the hero
 	if (los && dist < stats.threat_range) {
 		stats.in_combat = true;
 		stats.last_seen.x = stats.hero_pos.x;
 		stats.last_seen.y = stats.hero_pos.y;
+		powers->activate(stats.power_index[BEACON], &stats, stats.pos); //emit beacon
 	}
 	else if (stats.last_seen.x >= 0 && stats.last_seen.y >= 0) {
 		if (getDistance(stats.last_seen) <= (stats.speed+stats.speed) && stats.patrol_ticks == 0) {
@@ -151,9 +176,8 @@ void Enemy::logic() {
 			stats.patrol_ticks = 8; // start patrol; see note on "patrolling" below
 		}		
 	}
-	
 
-	
+
 	// where is the creature heading?
 	// TODO: add fleeing for X ticks
 	if (los) {
@@ -177,7 +201,6 @@ void Enemy::logic() {
 		pursue_pos.x = stats.last_seen.x;
 		pursue_pos.y = stats.last_seen.y;
 	}
-
 
 	
 	// SECTION 2: States
@@ -395,6 +418,7 @@ void Enemy::logic() {
 			
 			// the attack hazard is alive for a single frame
 			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()/2 && haz == NULL) {
+			
 				powers->activate(stats.power_index[RANGED_MENT], &stats, pursue_pos);
 				stats.power_ticks[RANGED_MENT] = stats.power_cooldown[RANGED_MENT];
 			}
@@ -456,21 +480,21 @@ void Enemy::logic() {
  * Returns false on miss
  */
 bool Enemy::takeHit(Hazard h) {
-	if (stats.cur_state != ENEMY_DEAD && stats.cur_state != ENEMY_CRITDEAD) {
-	
+	if (stats.cur_state != ENEMY_DEAD && stats.cur_state != ENEMY_CRITDEAD) 
+	{
+
 		if (!stats.in_combat) {
 			stats.in_combat = true;
 			stats.last_seen.x = stats.hero_pos.x;
 			stats.last_seen.y = stats.hero_pos.y;
+			powers->activate(stats.power_index[BEACON], &stats, stats.pos); //emit beacon
 		}
-	
-		// auto-miss if recently attacked
-		// this is mainly to prevent slow, wide missiles from getting multiple attack attempts
-		if (stats.targeted > 0) return false;
-		stats.targeted = 5;
-		
+
+		// exit if it was a beacon (to prevent stats.targeted from being set)
+		if (powers->powers[h.power_index].beacon) return false;
+
 		// if it's a miss, do nothing
-	    if (rand() % 100 > (h.accuracy - stats.avoidance + 25)) return false; 
+		if (rand() % 100 > (h.accuracy - stats.avoidance + 25)) return false; 
 		
 		// calculate base damage
 		int dmg;
@@ -530,10 +554,8 @@ bool Enemy::takeHit(Hazard h) {
 		}
 		
 		// post effect power
-		Point pt;
-		pt.x = pt.y = 0;
 		if (h.post_power >= 0 && dmg > 0) {
-			powers->activate(h.post_power, &stats, pt);
+			powers->activate(h.post_power, h.src_stats, stats.pos);
 		}
 		
 		// interrupted to new state

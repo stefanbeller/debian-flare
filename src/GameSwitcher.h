@@ -1,3 +1,20 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class GameSwitcher
  *
@@ -9,18 +26,14 @@
  * - new game screen (character create)
  * - load game screen
  * - maybe full-video cutscenes
- *
- * @author Clint Bellanger
- * @license GPL
- *
  */
  
 #ifndef GAME_SWITCHER_H
 #define GAME_SWITCHER_H
 
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
 #include "Settings.h"
 #include "InputState.h"
 #include "FontEngine.h"
@@ -34,15 +47,12 @@ class GameState;
 
 class GameSwitcher {
 private:
-	SDL_Surface *screen;
-	InputState *inp;
-	FontEngine *font;
-	Mix_Music *music;	
+	Mix_Music *music;
 	
 	GameState *currentState;
 	
 public:
-	GameSwitcher(SDL_Surface *_screen, InputState *_inp);
+	GameSwitcher();
 	void loadMusic();
 	void logic();
 	void render();

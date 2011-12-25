@@ -1,19 +1,31 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * Settings
- *
- * @author Clint Bellanger
- * @license GPL
  */
  
 #include "Settings.h"
 #include <fstream>
 #include <string>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include "FileParser.h"
 #include "Utils.h"
 #include "UtilsParsing.h"
+#include "UtilsFileSystem.h"
 
 using namespace std;
 
@@ -48,6 +60,11 @@ int SOUND_VOLUME = 128;
 
 // Input Settings
 bool MOUSE_MOVE = false;
+bool ENABLE_JOYSTICK = true;
+int JOYSTICK_DEVICE = 0;
+
+// Language Settings
+std::string LANGUAGE = "en";
 
 // Other Settings
 bool MENUS_PAUSE = false;
@@ -59,19 +76,31 @@ bool MENUS_PAUSE = false;
  * PATH_USER is for user-specific data (e.g. save games)
  * PATH_DATA is for common game data (e.g. images, music)
  */
+ 
 #ifdef _WIN32
+// Windows paths
 void setPaths() {
 
 	// handle Windows-specific path options
-	PATH_CONF = "./config/";
-	PATH_USER = "./saves/";
-	PATH_DATA = "./";
+	PATH_CONF = "config";
+	PATH_USER = "saves";
+	PATH_DATA = "";
+	
 	// TODO: place config and save data in the user's home, windows style
-	mkdir(PATH_CONF.c_str());
-	mkdir(PATH_USER.c_str());
+	createDir(PATH_CONF);
+	createDir(PATH_USER);
+	
+	PATH_CONF = PATH_CONF + "/";
+	PATH_USER = PATH_USER + "/";
 }
-#endif
-#ifndef _WIN32
+#elif __amigaos4__
+// AmigaOS paths
+void setPaths() {
+	PATH_CONF = "PROGDIR:";
+	PATH_USER = "PROGDIR:";
+	PATH_DATA = "PROGDIR:";
+}
+#else
 void setPaths() {
 
 	string engine_folder = "flare";
@@ -83,46 +112,46 @@ void setPaths() {
 	// $XDG_CONFIG_HOME/flare/
 	if (getenv("XDG_CONFIG_HOME") != NULL) {
 		PATH_CONF = (string)getenv("XDG_CONFIG_HOME") + "/" + engine_folder + "/";
-		mkdir(PATH_CONF.c_str(), S_IRWXU);
+		createDir(PATH_CONF);
 	}
 	// $HOME/.config/flare/
 	else if (getenv("HOME") != NULL) {
 		PATH_CONF = (string)getenv("HOME") + "/.config/";
-		mkdir(PATH_CONF.c_str(), S_IRWXU);
+		createDir(PATH_CONF);
 		PATH_CONF += engine_folder + "/";
-		mkdir(PATH_CONF.c_str(), S_IRWXU);		
+		createDir(PATH_CONF);		
 	}
 	// ./config/
 	else {
 		PATH_CONF = "./config/";
-		mkdir(PATH_CONF.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);		
+		createDir(PATH_CONF);		
 	}
 
 	// set user path (save games)
 	// $XDG_DATA_HOME/flare/
 	if (getenv("XDG_DATA_HOME") != NULL) {
 		PATH_USER = (string)getenv("XDG_DATA_HOME") + "/" + engine_folder + "/";
-		mkdir(PATH_USER.c_str(), S_IRWXU);
+		createDir(PATH_USER);
 	}
 	// $HOME/.local/share/flare/
 	else if (getenv("HOME") != NULL) {
 		PATH_USER = (string)getenv("HOME") + "/.local/";
-		mkdir(PATH_USER.c_str(), S_IRWXU);
+		createDir(PATH_USER);
 		PATH_USER += "share/";
-		mkdir(PATH_USER.c_str(), S_IRWXU);
+		createDir(PATH_USER);
 		PATH_USER += engine_folder + "/";
-		mkdir(PATH_USER.c_str(), S_IRWXU);
+		createDir(PATH_USER);
 	}
 	// ./saves/
 	else {
 		PATH_USER = "./saves/";
-		mkdir(PATH_USER.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);		
+		createDir(PATH_USER);	
 	}
 	
 	// data folder
 	// while PATH_CONF and PATH_USER are created if not found,
 	// PATH_DATA must already have the game data for the game to work.
-	// in most released the data will be in the same folder as the executable
+	// in most releases the data will be in the same folder as the executable
 	// - Windows apps are released as a simple folder
 	// - OSX apps are released in a .app folder
 	// Official linux distros might put the executable and data files
@@ -142,6 +171,11 @@ void setPaths() {
 			pathtest = eatFirstString(pathlist,':');
 		}
 	}
+
+#if defined DATA_INSTALL_DIR
+	PATH_DATA = DATA_INSTALL_DIR "/";
+	if (dirExists(PATH_DATA)) return; // NOTE: early exit
+#endif
 	
 	// check /usr/local/share/flare/ and /usr/share/flare/ next
 	PATH_DATA = "/usr/local/share/" + engine_folder + "/";
@@ -156,8 +190,7 @@ void setPaths() {
 	
 	PATH_DATA = "/usr/share/games/" + engine_folder + "/";
 	if (dirExists(PATH_DATA)) return; // NOTE: early exit
-	
-	
+
 	// finally assume the local folder
 	PATH_DATA = "./";
 }
@@ -172,6 +205,7 @@ bool loadSettings() {
 		while (infile.next()) {
 			if (infile.key == "fullscreen") {
 				if (infile.val == "1") FULLSCREEN = true;
+				else FULLSCREEN = false;
 			}
 			else if (infile.key == "resolution_w") {
 				VIEW_W = atoi(infile.val.c_str());
@@ -192,12 +226,21 @@ bool loadSettings() {
 			}
 			else if (infile.key == "hwsurface") {
 				if (infile.val == "1") HWSURFACE = true;
+				else HWSURFACE = false;
 			}
 			else if (infile.key == "doublebuf") {
 				if (infile.val == "1") DOUBLEBUF = true;
+				else DOUBLEBUF = false;
 			}
-			else if (infile.key == "frames_per_sec") {
-				FRAMES_PER_SEC = atoi(infile.val.c_str());
+			else if (infile.key == "enable_joystick") {
+				if (infile.val == "1") ENABLE_JOYSTICK = true;
+				else ENABLE_JOYSTICK = false;
+			}
+			else if (infile.key == "joystick_device") {
+				JOYSTICK_DEVICE = atoi(infile.val.c_str());
+			}
+			else if (infile.key == "language") {
+				LANGUAGE = infile.val.c_str();
 			}
 		}
 		infile.close();
@@ -219,15 +262,32 @@ bool saveSettings() {
 
 	if (outfile.is_open()) {
 	
-		outfile << "fullscreen=" << FULLSCREEN << "\n";
+		// TODO: output helpful comments
+	
+		outfile << "# fullscreen mode. 1 enable, 0 disable.\n";
+		outfile << "fullscreen=" << FULLSCREEN << "\n\n";
+		
+		outfile << "# display resolution. 640x480 minimum. 720x480 recommended.\n";		
 		outfile << "resolution_w=" << VIEW_W << "\n";
-		outfile << "resolution_h=" << VIEW_H << "\n";
+		outfile << "resolution_h=" << VIEW_H << "\n\n";
+		
+		outfile << "# music and sound volume (0 = silent, 128 = max)\n";
 		outfile << "music_volume=" << MUSIC_VOLUME << "\n";
-		outfile << "sound_volume=" << SOUND_VOLUME << "\n";
-		outfile << "mouse_move=" << MOUSE_MOVE << "\n";
+		outfile << "sound_volume=" << SOUND_VOLUME << "\n\n";
+		
+		outfile << "# use mouse to move (experimental). 1 enable, 0 disable.\n";
+		outfile << "mouse_move=" << MOUSE_MOVE << "\n\n";
+		
+		outfile << "# hardware surfaces, double buffering. Try disabling for performance. 1 enable, 0 disable.\n";
 		outfile << "hwsurface=" << HWSURFACE << "\n";
-		outfile << "doublebuf=" << DOUBLEBUF << "\n";
-		outfile << "frames_per_sec=" << FRAMES_PER_SEC << "\n";
+		outfile << "doublebuf=" << DOUBLEBUF << "\n\n";
+		
+		outfile << "# joystick settings.\n";
+		outfile << "enable_joystick=" << ENABLE_JOYSTICK << "\n";
+		outfile << "joystick_device=" << JOYSTICK_DEVICE << "\n\n";
+		
+		outfile << "# 2-letter language code.\n";
+		outfile << "language=" << LANGUAGE << "\n\n";
 
 		outfile.close();
 	}

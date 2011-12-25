@@ -1,16 +1,30 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class MenuManager
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #ifndef MENU_MANAGER_H
 #define MENU_MANAGER_H
 
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
 #include "Utils.h"
 #include "FontEngine.h"
 #include "InputState.h"
@@ -22,8 +36,8 @@
 #include "StatBlock.h"
 #include "MenuActionBar.h"
 #include "MenuHPMP.h"
-#include "MenuTooltip.h"
-#include "ItemDatabase.h"
+#include "WidgetTooltip.h"
+#include "ItemManager.h"
 #include "PowerManager.h"
 #include "MenuMiniMap.h"
 #include "MenuExperience.h"
@@ -32,6 +46,7 @@
 #include "MenuTalker.h"
 #include "MenuExit.h"
 #include "CampaignManager.h"
+#include "SharedResources.h"
 
 const int DRAG_SRC_POWERS = 1;
 const int DRAG_SRC_INVENTORY = 2;
@@ -45,10 +60,9 @@ private:
 
 	PowerManager *powers;
 	StatBlock *stats;
-	InputState *inp;
-	FontEngine *font;
-	SDL_Surface *screen;
 	CampaignManager *camp;
+	
+	TooltipData tip_buf;
 
 	bool key_lock;
 	void loadSounds();
@@ -62,7 +76,7 @@ private:
 	bool done;
 	
 public:
-	MenuManager(PowerManager *powers, SDL_Surface *screen, InputState *inp, FontEngine *font, StatBlock *stats, CampaignManager *camp);
+	MenuManager(PowerManager *powers, StatBlock *stats, CampaignManager *camp);
 	~MenuManager();
 	void logic();
 	void render();
@@ -78,14 +92,14 @@ public:
 	MenuHUDLog *hudlog;
 	MenuActionBar *act;
 	MenuHPMP *hpmp;
-	MenuTooltip *tip;
+	WidgetTooltip *tip;
 	MenuMiniMap *mini;
 	MenuExperience *xp;
 	MenuEnemy *enemy;
 	MenuVendor *vendor;
 	MenuTalker *talker;
 	MenuExit *exit;
-	ItemDatabase *items;
+	ItemManager *items;
 	
 	bool pause;
 	bool menus_open;
