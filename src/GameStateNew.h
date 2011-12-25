@@ -1,22 +1,30 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * GameStateNew
  * 
  * Handle player choices when starting a new game
  * (e.g. character appearance)
- * 
- * @author Clint Bellanger
- * @license GPL
  */
 
 #ifndef GAMESTATENEW_H
 #define GAMESTATENEW_H
 
-#include <string>
-#include <sstream>
-
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
 #include "InputState.h"
 #include "FontEngine.h"
 #include "WidgetButton.h"
@@ -25,6 +33,18 @@
 #include "Settings.h"
 #include "GameState.h"
 #include "UtilsParsing.h"
+#include "SharedResources.h"
+
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
+
+#include <string>
+#include <sstream>
+
+
+class WidgetLabel;
+
 
 const int PLAYER_OPTION_MAX = 32;
 
@@ -47,10 +67,12 @@ private:
 	WidgetButton *button_create;
 	WidgetButton *button_next;
 	WidgetButton *button_prev;
+	WidgetLabel *label_portrait;
+	WidgetLabel *label_name;
 	WidgetInput *input_name;
 
 public:
-	GameStateNew(SDL_Surface *_screen, InputState *_inp, FontEngine *_font);
+	GameStateNew();
 	~GameStateNew();
 	void logic();
 	void render();

@@ -1,14 +1,29 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class WidgetButton
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "WidgetButton.h"
+#include "SharedResources.h"
 
-WidgetButton::WidgetButton(SDL_Surface *_screen, FontEngine *_font, InputState *_inp, const char* _fileName)
-	: screen(_screen), font(_font), inp(_inp), fileName(_fileName) {
+WidgetButton::WidgetButton(const std::string& _fileName)
+	: fileName(_fileName) {
 
 	buttons = NULL;
 	click = NULL;
@@ -27,7 +42,7 @@ WidgetButton::WidgetButton(SDL_Surface *_screen, FontEngine *_font, InputState *
 void WidgetButton::loadArt() {
 
 	// load button images
-	buttons = IMG_Load((PATH_DATA + fileName).c_str());
+	buttons = IMG_Load(fileName.c_str());
 
 	if(!buttons) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
@@ -97,21 +112,27 @@ void WidgetButton::render() {
 		src.y = BUTTON_GFX_NORMAL * pos.h;
 	
 	SDL_BlitSurface(buttons, &src, screen, &pos);
-	
+
+	wlabel.render();
+}
+
+/**
+ * Create the text buffer
+ */
+void WidgetButton::refresh() {
 	if (label != "") {
 	
 		// render text
 		int font_color = FONT_WHITE;
 		if (!enabled) font_color = FONT_GRAY;
-	
-		// center font on button
-		int font_x = pos.x + (pos.w/2);
-		int font_y = (pos.y + (pos.h/2)) - (font->getHeight() / 2);
 
-		font->render(label, font_x, font_y, JUSTIFY_CENTER, screen, font_color);
+		int font_x = pos.x + (pos.w/2);
+		int font_y = pos.y + (pos.h/2);
+
+		wlabel.set(font_x, font_y, JUSTIFY_CENTER, VALIGN_CENTER, label, font_color);
 	}
 }
-	
+
 WidgetButton::~WidgetButton() {
 	SDL_FreeSurface(buttons);
 }

@@ -1,26 +1,40 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class PowerManager
  *
  * Special code for handling spells, special powers, item effects, etc.
- *
- * @author Clint Bellanger
- * @license GPL
  */
-
-#include <string>
-#include <queue>
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
-#include "Utils.h"
-#include "StatBlock.h"
-#include "Hazard.h"
-#include "MapCollision.h"
 
 #ifndef POWER_MANAGER_H
 #define POWER_MANAGER_H
 
-using namespace std;
+#include "Utils.h"
+#include "StatBlock.h"
+#include "Hazard.h"
+#include "MapCollision.h"
+#include "SharedResources.h"
+
+#include <SDL.h>
+#include <SDL_image.h>
+
+#include <string>
+#include <queue>
 
 const int POWER_COUNT = 1024;
 const int POWER_MAX_GFX = 64;
@@ -59,7 +73,6 @@ const int STARTING_POS_SOURCE = 0;
 const int STARTING_POS_TARGET = 1;
 const int STARTING_POS_MELEE = 2;
 
-
 // first 20 powers coincide with power tree
 // TODO: remove this restriction
 const int POWER_SHIELD = 11;
@@ -70,11 +83,13 @@ struct Power {
 
 	// base info
 	int type; // what kind of activate() this is
-	string name;
-	string description;
+	std::string name;
+	std::string description;
 	int icon; // just the number.  The caller menu will have access to the surface.
 	int new_state; // when using this power the user (avatar/enemy) starts a new state
 	bool face; // does the user turn to face the mouse cursor when using this power?
+	int source_type; //hero, neutral, or enemy
+	bool beacon; //true if it's just an ememy calling its allies
 
 	// power requirements
 	bool requires_physical_weapon;
@@ -162,6 +177,8 @@ struct Power {
 		icon = -1;
 		new_state = -1;
 		face=false;
+		source_type=-1;
+		beacon=false;
 		
 		requires_physical_weapon = false;
 		requires_offense_weapon = false;
@@ -244,13 +261,14 @@ private:
 	
 	MapCollision *collider;
 
-	void loadPowers();
+	void loadAll();
+	void loadPowers(const std::string& filename);
 	void loadGraphics();
 	
-	int loadGFX(string filename);
-	int loadSFX(string filename);
-	string gfx_filenames[POWER_MAX_GFX];
-	string sfx_filenames[POWER_MAX_SFX];
+	int loadGFX(const std::string& filename);
+	int loadSFX(const std::string& filename);
+	std::string gfx_filenames[POWER_MAX_GFX];
+	std::string sfx_filenames[POWER_MAX_SFX];
 	int gfx_count;
 	int sfx_count;
 	float calcTheta(int x1, int y1, int x2, int y2);
@@ -264,17 +282,16 @@ private:
 	bool missile(int powernum, StatBlock *src_stats, Point target);
 	bool repeater(int powernum, StatBlock *src_stats, Point target);
 	bool single(int powernum, StatBlock *src_stats, Point target);
-	
+
 public:
 	PowerManager();
 	~PowerManager();
 
-	void handleNewMap(MapCollision *_collider);	
+	void handleNewMap(MapCollision *_collider);
 	bool activate(int power_index, StatBlock *src_stats, Point target);
 
-	StatBlock *src_stats;
 	Power powers[POWER_COUNT];
-	queue<Hazard *> hazards; // output; read by HazardManager
+	std::queue<Hazard *> hazards; // output; read by HazardManager
 
 	// shared images/sounds for power special effects
 	SDL_Surface *gfx[POWER_MAX_GFX];

@@ -1,23 +1,41 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class MenuPowers
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "MenuPowers.h"
+#include "SharedResources.h"
+#include "WidgetLabel.h"
 
-MenuPowers::MenuPowers(SDL_Surface *_screen, InputState *_inp, FontEngine *_font, StatBlock *_stats, PowerManager *_powers) {
-	screen = _screen;
-	inp = _inp;
-	font = _font;
+#include <string>
+#include <sstream>
+
+using namespace std;
+
+
+MenuPowers::MenuPowers(StatBlock *_stats, PowerManager *_powers) {
 	stats = _stats;
 	powers = _powers;
-	
+
 	visible = false;
 	loadGraphics();
-	
-			
+
 	// set slot positions
 	int offset_x = (VIEW_W - 320);
 	int offset_y = (VIEW_H - 416)/2;
@@ -27,18 +45,33 @@ MenuPowers::MenuPowers(SDL_Surface *_screen, InputState *_inp, FontEngine *_font
 		slots[i].x = offset_x + 48 + (i % 4) * 64;
 		slots[i].y = offset_y + 80 + (i / 4) * 64;
 	}
-	
-	closeButton = new WidgetButton(screen, font, inp, "images/menus/buttons/button_x.png");
+
+	closeButton = new WidgetButton(mods->locate("images/menus/buttons/button_x.png"));
 	closeButton->pos.x = VIEW_W - 26;
 	closeButton->pos.y = (VIEW_H - 480)/2 + 34;
 
+	label_powers.set(offset_x+160, offset_y+8, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Powers"), FONT_WHITE);
+	label_p1.set(offset_x+64, offset_y+50, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Physical"), FONT_WHITE);
+	label_p2.set(offset_x+128, offset_y+50, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Physical"), FONT_WHITE);
+	label_m1.set(offset_x+192, offset_y+50, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Mental"), FONT_WHITE);
+	label_m2.set(offset_x+256, offset_y+50, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Mental"), FONT_WHITE);
+	label_o1.set(offset_x+64, offset_y+66, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Offense"), FONT_WHITE);
+	label_o2.set(offset_x+192, offset_y+66, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Offense"), FONT_WHITE);
+	label_d1.set(offset_x+128, offset_y+66, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Defense"), FONT_WHITE);
+	label_d2.set(offset_x+256, offset_y+66, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Defense"), FONT_WHITE);
+	
+	stat_po.set(offset_x+64, offset_y+34, JUSTIFY_CENTER, VALIGN_TOP, "", FONT_WHITE);
+	stat_pd.set(offset_x+128, offset_y+34, JUSTIFY_CENTER, VALIGN_TOP, "", FONT_WHITE);
+	stat_mo.set(offset_x+192, offset_y+34, JUSTIFY_CENTER, VALIGN_TOP, "", FONT_WHITE);
+	stat_md.set(offset_x+256, offset_y+34, JUSTIFY_CENTER, VALIGN_TOP, "", FONT_WHITE);
+	
 }
 
 void MenuPowers::loadGraphics() {
 
-	background = IMG_Load((PATH_DATA + "images/menus/powers.png").c_str());
-	powers_step = IMG_Load((PATH_DATA + "images/menus/powers_step.png").c_str());
-	powers_unlock = IMG_Load((PATH_DATA + "images/menus/powers_unlock.png").c_str()); 
+	background = IMG_Load(mods->locate("images/menus/powers.png").c_str());
+	powers_step = IMG_Load(mods->locate("images/menus/powers_step.png").c_str());
+	powers_unlock = IMG_Load(mods->locate("images/menus/powers_unlock.png").c_str());
 	if(!background || !powers_step || !powers_unlock) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
 		SDL_Quit();
@@ -126,32 +159,39 @@ void MenuPowers::render() {
 	closeButton->render();
 	
 	// text overlay
-	// TODO: translate()
-	font->render("Powers", offset_x+160, offset_y+8, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Physical", offset_x+64, offset_y+50, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Physical", offset_x+128, offset_y+50, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Mental", offset_x+192, offset_y+50, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Mental", offset_x+256, offset_y+50, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Offense", offset_x+64, offset_y+66, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Defense", offset_x+128, offset_y+66, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Offense", offset_x+192, offset_y+66, JUSTIFY_CENTER, screen, FONT_WHITE);
-	font->render("Defense", offset_x+256, offset_y+66, JUSTIFY_CENTER, screen, FONT_WHITE);
-	
+	label_powers.render();
+	label_p1.render();
+	label_p2.render();
+	label_m1.render();
+	label_m2.render();
+	label_o1.render();
+	label_o2.render();
+	label_d1.render();
+	label_d2.render();
+
 	// stats
 	stringstream ss;
+
 	ss.str("");
 	ss << stats->physoff;
-	font->render(ss.str(), offset_x+64, offset_y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
+	stat_po.set(ss.str());
+	stat_po.render();
+
 	ss.str("");
 	ss << stats->physdef;
-	font->render(ss.str(), offset_x+128, offset_y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
+	stat_pd.set(ss.str());
+	stat_pd.render();
+
 	ss.str("");
 	ss << stats->mentoff;
-	font->render(ss.str(), offset_x+192, offset_y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
+	stat_mo.set(ss.str());
+	stat_mo.render();
+
 	ss.str("");
 	ss << stats->mentdef;
-	font->render(ss.str(), offset_x+256, offset_y+34, JUSTIFY_CENTER, screen, FONT_WHITE);
-	
+	stat_md.set(ss.str());
+	stat_md.render();
+
 	// highlighting
 	displayBuild(stats->physoff, offset_x+48);
 	displayBuild(stats->physdef, offset_x+112);
@@ -206,19 +246,19 @@ TooltipData MenuPowers::checkTooltip(Point mouse) {
 	
 	if (mouse.y >= offset_y+32 && mouse.y <= offset_y+80) {
 		if (mouse.x >= offset_x+48 && mouse.x <= offset_x+80) {
-			tip.lines[tip.num_lines++] = "Physical + Offense grants melee and ranged attacks";
+			tip.lines[tip.num_lines++] = msg->get("Physical + Offense grants melee and ranged attacks");
 			return tip;
 		}
 		if (mouse.x >= offset_x+112 && mouse.x <= offset_x+144) {
-			tip.lines[tip.num_lines++] = "Physical + Defense grants melee protection";
+			tip.lines[tip.num_lines++] = msg->get("Physical + Defense grants melee protection");
 			return tip;
 		}
 		if (mouse.x >= offset_x+176 && mouse.x <= offset_x+208) {
-			tip.lines[tip.num_lines++] = "Mental + Offense grants elemental spell attacks";
+			tip.lines[tip.num_lines++] = msg->get("Mental + Offense grants elemental spell attacks");
 			return tip;
 		}
 		if (mouse.x >= offset_x+240 && mouse.x <= offset_x+272) {
-			tip.lines[tip.num_lines++] = "Mental + Defense grants healing and magical protection";
+			tip.lines[tip.num_lines++] = msg->get("Mental + Defense grants healing and magical protection");
 			return tip;
 		}
 	}
@@ -229,52 +269,41 @@ TooltipData MenuPowers::checkTooltip(Point mouse) {
 				tip.lines[tip.num_lines++] = powers->powers[i].description;
 				
 				if (powers->powers[i].requires_physical_weapon)
-					tip.lines[tip.num_lines++] = "Requires a physical weapon";
+					tip.lines[tip.num_lines++] = msg->get("Requires a physical weapon");
 				else if (powers->powers[i].requires_mental_weapon)
-					tip.lines[tip.num_lines++] = "Requires a mental weapon";
+					tip.lines[tip.num_lines++] = msg->get("Requires a mental weapon");
 				else if (powers->powers[i].requires_offense_weapon)
-					tip.lines[tip.num_lines++] = "Requires an offense weapon";
+					tip.lines[tip.num_lines++] = msg->get("Requires an offense weapon");
 				
 				
 				// add requirement
 				int required_val = (i / 4) * 2 + 1;
 				int required_stat = i % 4;
-				stringstream ss;
-				ss.str("");
-				ss << "Requires ";
 				if (required_val > 1) {
-					if (required_stat == 0) ss << "Physical Offense ";
-					else if (required_stat == 1) ss << "Physical Defense ";
-					else if (required_stat == 2) ss << "Mental Offense ";
-					else ss << "Mental Defense ";
-					ss << required_val;
 
 					if (!requirementsMet(i))
 						tip.colors[tip.num_lines] = FONT_RED;
-					tip.lines[tip.num_lines++] = ss.str();
+
+					if (required_stat == 0) tip.lines[tip.num_lines++] = msg->get("Requires Physical Offense %d", required_val);
+					else if (required_stat == 1) tip.lines[tip.num_lines++] = msg->get("Requires Physical Defense %d", required_val);
+					else if (required_stat == 2) tip.lines[tip.num_lines++] = msg->get("Requires Mental Offense %d", required_val);
+					else tip.lines[tip.num_lines++] = msg->get("Requires Mental Defense %d", required_val);
 
 				}
 
 				// add mana cost
 				if (powers->powers[i].requires_mp > 0) {
-					stringstream ss;
-					ss.str("");
-					ss << "Costs " << powers->powers[i].requires_mp << " MP";
-					tip.lines[tip.num_lines++] = ss.str();
+					tip.lines[tip.num_lines++] = msg->get("Costs %d MP", powers->powers[i].requires_mp);
 				}
 				// add cooldown time
 				if (powers->powers[i].cooldown > 0) {
-					stringstream ss;
-					ss.str("");
-					ss << "Cooldown: " << powers->powers[i].cooldown / 1000.0 << " seconds";
-					tip.lines[tip.num_lines++] = ss.str();
+					tip.lines[tip.num_lines++] = msg->get("Cooldown: %d seconds", powers->powers[i].cooldown / 1000.0);
 				}
-								
+
 				return tip;
 			}
 		}
 	}
-	
 	
 	return tip;
 }

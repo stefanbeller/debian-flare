@@ -1,13 +1,28 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class InputState
  *
  * Handles keyboard and mouse states
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "InputState.h"
+#include "Settings.h"
 
 using namespace std;
 
@@ -52,8 +67,8 @@ InputState::InputState(void) {
 	binding_alt[CTRL] = SDLK_RCTRL;
 	binding[SHIFT] = SDLK_LSHIFT;
 	binding_alt[SHIFT] = SDLK_RSHIFT;
-	binding[DELETE] = SDLK_DELETE;
-	binding_alt[DELETE] = SDLK_BACKSPACE;
+	binding[DEL] = SDLK_DELETE;
+	binding_alt[DEL] = SDLK_BACKSPACE;
 	
 	for (int key=0; key<key_count; key++) {
 		pressing[key] = false;
@@ -62,6 +77,12 @@ InputState::InputState(void) {
 	done = false;
 	
 	loadKeyBindings();
+	
+	// Optionally ignore the Joystick subsystem
+	if (!ENABLE_JOYSTICK) {
+		SDL_JoystickEventState(SDL_IGNORE);
+		SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
+	}
 }
 
 /**
@@ -110,7 +131,7 @@ void InputState::loadKeyBindings() {
 		else if (infile.key == "log") cursor = LOG;
 		else if (infile.key == "ctrl") cursor = CTRL;
 		else if (infile.key == "shift") cursor = SHIFT;
-		else if (infile.key == "delete") cursor = DELETE;
+		else if (infile.key == "delete") cursor = DEL;
 		
 		if (cursor != -1) {
 			binding[cursor] = key1;
@@ -154,36 +175,48 @@ void InputState::saveKeyBindings() {
 		outfile << "log=" << binding[LOG] << "," << binding_alt[LOG] << "\n";
 		outfile << "ctrl=" << binding[CTRL] << "," << binding_alt[CTRL] << "\n";
 		outfile << "shift=" << binding[SHIFT] << "," << binding_alt[SHIFT] << "\n";
-		outfile << "delete=" << binding[DELETE] << "," << binding_alt[DELETE] << "\n";
+		outfile << "delete=" << binding[DEL] << "," << binding_alt[DEL] << "\n";
 		
 		outfile.close();
 	}
 
 }
-	
+
 void InputState::handle() {
 	SDL_Event event;
-	
+
 	SDL_GetMouseState(&mouse.x, &mouse.y);
-	
+
+	static bool joyReverseAxisX;
+	static bool joyReverseAxisY;
 	static bool joyHasMovedX;
 	static bool joyHasMovedY;
-	static int fakeKeyX;
-	static int fakeKeyY;
+	static int joyLastPosX;
+	static int joyLastPosY;
 
 	inkeys = "";
 
 	/* Check for events */
 	while (SDL_PollEvent (&event)) {
-	
-		// grab ASCII keys
+
+		// grab symbol keys
 		if (event.type == SDL_KEYDOWN) {
-			if (event.key.keysym.unicode >= 32 && event.key.keysym.unicode < 127)
-				inkeys = inkeys + (char)event.key.keysym.unicode;
+			int ch = event.key.keysym.unicode;
+			// if it is printable char then write its utf-8 representation
+			if (ch >= 0x800) {
+				inkeys += (char) ((ch >> 12) | 0xe0);
+				inkeys += (char) (((ch >> 6) & 0x3f) | 0x80);
+				inkeys += (char) ((ch & 0x3f) | 0x80);
+			} else if (ch >= 0x80) {
+				inkeys += (char) ((ch >> 6) | 0xc0);
+				inkeys += (char) ((ch & 0x3f) | 0x80);
+			} else if (ch >= 32 && ch != 127) {
+				inkeys += (char)ch;
+			}
 		}
-	
+
 		switch (event.type) {
-				
+
 			case SDL_MOUSEBUTTONDOWN:
 				for (int key=0; key<key_count; key++) {
 					if (event.button.button == binding[key] || event.button.button == binding_alt[key]) {
@@ -215,192 +248,284 @@ void InputState::handle() {
 				}
 				break;
 			case SDL_JOYAXISMOTION:
-				switch(event.jaxis.axis) {
-					/* first analog */
-					case 0:
-						/* left */
-						if ((joyHasMovedX == false) && (event.jaxis.value < -JOY_DEADZONE) && (event.jaxis.value > JOY_MIN)) {
-							fakeKeyX = SDLK_LEFT;
-							joyHasMovedX = true;
-						}
-						/* right */
-						if ((joyHasMovedX == false) && (event.jaxis.value > JOY_DEADZONE) && (event.jaxis.value < JOY_MAX)) {
-							fakeKeyX = SDLK_RIGHT;
-							joyHasMovedX = true;
-						}
-						/* centered */
-						if ((event.jaxis.value > -JOY_DEADZONE) && (event.jaxis.value < JOY_DEADZONE)) {
-							joyHasMovedX = false;
-						}
-						break;
-					case 1:
-						/* up */
-						if ((joyHasMovedY == false) && (event.jaxis.value < -JOY_DEADZONE) && (event.jaxis.value > JOY_MIN)) {
-							fakeKeyY = SDLK_UP;
-							joyHasMovedY = true;
-						}
-						/* down */
-						if ((joyHasMovedY == false) && (event.jaxis.value > JOY_DEADZONE) && (event.jaxis.value < JOY_MAX)) {
-							fakeKeyY = SDLK_DOWN;
-							joyHasMovedY = true;
-						}
-						/* centered */
-						if ((event.jaxis.value > -JOY_DEADZONE) && (event.jaxis.value < JOY_DEADZONE)) {
-							joyHasMovedY = false;
-						}
-						break;
-					/* second analog */
-					case 2:
-						break;
-					case 4:
-						break;
-				}
-				for (int key=0; key<key_count; key++) {
-					if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-						if (joyHasMovedX) {
-							pressing[key] = true;
-						}
-						else {
-							pressing[key] = false;
-							lock[key] = false;
-						}
-					}
-					if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-						if (joyHasMovedY) {
-							pressing[key] = true;
-						}
-						else {
-							pressing[key] = false;
-							lock[key] = false;
-						}
+				if(JOYSTICK_DEVICE == event.jaxis.which)
+				{
+					switch(event.jaxis.axis) {
+						/* first analog */
+						case 0:
+							if(event.jaxis.value < -JOY_DEADZONE)
+							{
+								if(!joyReverseAxisX)
+								{
+									if(joyLastPosX == JOY_POS_RIGHT)
+									{
+										joyHasMovedX = 0;
+									}
+								}
+								else
+								{
+									if(joyLastPosX == JOY_POS_LEFT)
+									{
+										joyHasMovedX = 0;
+									}
+								}
+								if(joyHasMovedX == 0)
+								{
+									if(!joyReverseAxisX)
+									{
+										pressing[LEFT] = true;
+										pressing[RIGHT] = false;
+										lock[RIGHT] = false;
+										joyLastPosX = JOY_POS_LEFT;
+									}
+									else
+									{
+										pressing[RIGHT] = true;
+										pressing[LEFT] = false;
+										lock[LEFT] = false;
+										joyLastPosX = JOY_POS_RIGHT;
+									}
+									joyHasMovedX = 1;
+								}
+							}
+							if(event.jaxis.value > JOY_DEADZONE)
+			                                {
+								if(!joyReverseAxisX)
+								{
+									if(joyLastPosX == JOY_POS_LEFT)
+									{
+										joyHasMovedX = 0;
+									}
+								}
+								else
+								{
+									if(joyLastPosX == JOY_POS_RIGHT)
+									{
+										joyHasMovedX = 0;
+									}
+								}
+								if(joyHasMovedX == 0)
+								{
+									if(!joyReverseAxisX)
+									{
+										pressing[RIGHT] = true;
+										pressing[LEFT] = false;
+										lock[LEFT] = false;
+										joyLastPosX = JOY_POS_RIGHT;
+									}
+									else
+									{
+										pressing[LEFT] = true;
+										pressing[RIGHT] = false;
+										lock[RIGHT] = false;
+										joyLastPosX = JOY_POS_LEFT;
+									}
+									joyHasMovedX = 1;
+								}
+			                                }
+							if((event.jaxis.value >= -JOY_DEADZONE) && (event.jaxis.value < JOY_DEADZONE))
+							{
+								pressing[LEFT] = false;
+								lock[LEFT] = false;
+								pressing[RIGHT] = false;
+								lock[RIGHT] = false;
+								joyHasMovedX = 0;
+								joyLastPosX = JOY_POS_CENTER;
+							}
+							break;
+						case 1:
+							if(event.jaxis.value < -JOY_DEADZONE)
+			                                {
+								if(!joyReverseAxisY)
+								{
+									if(joyLastPosY == JOY_POS_DOWN)
+									{
+										joyHasMovedY = 0;
+									}
+								}
+								else
+								{
+									if(joyLastPosY == JOY_POS_UP)
+									{
+										joyHasMovedY = 0;
+									}
+								}
+								if(joyHasMovedY == 0)
+								{
+									if(!joyReverseAxisY)
+									{
+										pressing[UP] = true;
+										pressing[DOWN] = false;
+										lock[DOWN] = false;
+										joyLastPosY = JOY_POS_UP;
+									}
+									else
+									{
+										pressing[DOWN] = true;
+										pressing[UP] = false;
+										lock[UP] = false;
+										joyLastPosY = JOY_POS_DOWN;
+									}
+									joyHasMovedY = 1;
+								}
+			                                }
+							if(event.jaxis.value > JOY_DEADZONE)
+			                                {
+								if(!joyReverseAxisY)
+								{
+									if(joyLastPosY == JOY_POS_UP)
+									{
+										joyHasMovedY = 0;
+									}
+								}
+								else
+								{
+									if(joyLastPosY == JOY_POS_DOWN)
+									{
+										joyHasMovedY = 0;
+									}
+								}
+								if(joyHasMovedY == 0)
+								{
+									if(!joyReverseAxisY)
+									{
+										pressing[DOWN] = true;
+										pressing[UP] = false;
+										lock[UP] = false;
+										joyLastPosY = JOY_POS_DOWN;
+									}
+									else
+									{
+										pressing[UP] = true;
+										pressing[DOWN] = false;
+										lock[DOWN] = false;
+										joyLastPosY = JOY_POS_UP;
+									}
+									joyHasMovedY = 1;
+								}
+							}
+							if((event.jaxis.value >= -JOY_DEADZONE) && (event.jaxis.value < JOY_DEADZONE))
+							{
+								pressing[UP] = false;
+								lock[UP] = false;
+								pressing[DOWN] = false;
+								lock[DOWN] = false;
+								joyHasMovedY = 0;
+								joyLastPosY = JOY_POS_CENTER;
+							}
+							break;
+						/* second analog */
+						case 2:
+							break;
+						case 4:
+							break;
 					}
 				}
 				break;
 
 			case SDL_JOYHATMOTION:
-				switch (event.jhat.value) {
-					case SDL_HAT_CENTERED:
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = false;
-								lock[key] = false;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = false;
-								lock[key] = false;
-							}
-						}
-						break;
-					case SDL_HAT_UP:
-						fakeKeyY = SDLK_UP;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = false;
-								lock[key] = false;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = true;
-							}
-						}
-						break;
-					case SDL_HAT_DOWN:
-						fakeKeyY = SDLK_DOWN;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = false;
-								lock[key] = false;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = true;
-							}
-						}
-						break;
-					case SDL_HAT_LEFT:
-						fakeKeyX = SDLK_LEFT;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = true;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = false;
-								lock[key] = false;
-							}
-						}
-						break;
-					case SDL_HAT_RIGHT:
-						fakeKeyX = SDLK_RIGHT;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = true;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = false;
-								lock[key] = false;
-							}
-						}
-						break;
-					case SDL_HAT_LEFTUP:
-						fakeKeyX = SDLK_LEFT;
-						fakeKeyY = SDLK_UP;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = true;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = true;
-							}
-						}
-						break;
-					case SDL_HAT_LEFTDOWN:
-						fakeKeyX = SDLK_LEFT;
-						fakeKeyY = SDLK_DOWN;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = true;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = true;
-							}
-						}
-						break;
-					case SDL_HAT_RIGHTUP:
-						fakeKeyX = SDLK_RIGHT;
-						fakeKeyY = SDLK_UP;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = true;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = true;
-							}
-						}
-						break;
-					case SDL_HAT_RIGHTDOWN:
-						fakeKeyX = SDLK_RIGHT;
-						fakeKeyY = SDLK_DOWN;
-						for (int key = 0; key<key_count; key++) {
-							if (fakeKeyX == binding[key] || fakeKeyX == binding_alt[key]) {
-								pressing[key] = true;
-							}
-							if (fakeKeyY == binding[key] || fakeKeyY == binding_alt[key]) {
-								pressing[key] = true;
-							}
-						}
-						break;
+				if(JOYSTICK_DEVICE == event.jhat.which)
+				{
+					switch (event.jhat.value) {
+						case SDL_HAT_CENTERED:
+							pressing[UP] = false;
+							lock[UP] = false;
+							pressing[DOWN] = false;
+							lock[DOWN] = false;
+							pressing[LEFT] = false;
+							lock[LEFT] = false;
+							pressing[RIGHT] = false;
+							lock[RIGHT] = false;
+							break;
+						case SDL_HAT_UP:
+							pressing[UP] = true;
+							pressing[DOWN] = false;
+							lock[DOWN] = false;
+							pressing[LEFT] = false;
+							lock[LEFT] = false;
+							pressing[RIGHT] = false;
+							lock[RIGHT] = false;
+							break;
+						case SDL_HAT_DOWN:
+							pressing[UP] = false;
+							lock[UP] = false;
+							pressing[DOWN] = true;
+							pressing[LEFT] = false;
+							lock[LEFT] = false;
+							pressing[RIGHT] = false;
+							lock[RIGHT] = false;
+							break;
+						case SDL_HAT_LEFT:
+							pressing[UP] = false;
+							lock[UP] = false;
+							pressing[DOWN] = false;
+							lock[DOWN] = false;
+							pressing[LEFT] = true;
+							pressing[RIGHT] = false;
+							lock[RIGHT] = false;
+							break;
+						case SDL_HAT_RIGHT:
+							pressing[UP] = false;
+							lock[UP] = false;
+							pressing[DOWN] = false;
+							lock[DOWN] = false;
+							pressing[LEFT] = false;
+							lock[LEFT] = false;
+							pressing[RIGHT] = true;
+							break;
+						case SDL_HAT_LEFTUP:
+							pressing[UP] = true;
+							pressing[DOWN] = false;
+							lock[DOWN] = false;
+							pressing[LEFT] = true;
+							pressing[RIGHT] = false;
+							lock[RIGHT] = false;
+							break;
+						case SDL_HAT_LEFTDOWN:
+							pressing[UP] = false;
+							lock[UP] = false;
+							pressing[DOWN] = true;
+							pressing[LEFT] = true;
+							pressing[RIGHT] = false;
+							lock[RIGHT] = false;
+							break;
+						case SDL_HAT_RIGHTUP:
+							pressing[UP] = true;
+							pressing[DOWN] = false;
+							lock[DOWN] = false;
+							pressing[LEFT] = false;
+							lock[LEFT] = false;
+							pressing[RIGHT] = true;
+							break;
+						case SDL_HAT_RIGHTDOWN:
+							pressing[UP] = false;
+							lock[UP] = false;
+							pressing[DOWN] = true;
+							pressing[LEFT] = false;
+							lock[LEFT] = false;
+							pressing[RIGHT] = true;
+							break;
+					}
 				}
 				break;
 			case SDL_JOYBUTTONDOWN:
-				for (int key=0; key<key_count; key++) {
-					if (event.jbutton.button == binding[key] || event.jbutton.button == binding_alt[key]) {
-						pressing[key] = true;
+				if(JOYSTICK_DEVICE == event.jbutton.which)
+				{
+					for (int key=0; key<key_count; key++) {
+						if (event.jbutton.button == binding[key] || event.jbutton.button == binding_alt[key]) {
+							pressing[key] = true;
+						}
 					}
 				}
 				break;
 			case SDL_JOYBUTTONUP:
-				for (int key=0; key<key_count; key++) {
-					if (event.jbutton.button == binding[key] || event.jbutton.button == binding_alt[key]) {
-						pressing[key] = false;
-						lock[key] = false;
+				if(JOYSTICK_DEVICE == event.jbutton.which)
+				{
+					for (int key=0; key<key_count; key++) {
+						if (event.jbutton.button == binding[key] || event.jbutton.button == binding_alt[key]) {
+							pressing[key] = false;
+							lock[key] = false;
+						}
 					}
 				}
 				break;

@@ -1,16 +1,29 @@
-#ifndef ENTITY_H
-#define ENTITY_H
+/*
+Copyright 2011 Clint Bellanger and kitano
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
 
 /**
  * class Entity
  *
  * An Entity represents any character in the game - the player, allies, enemies
  * This base class handles logic common to all of these child classes
- *
- * @author Clint Bellanger
- * @author kitano
- * @license GPL
  */
+
+#ifndef ENTITY_H
+#define ENTITY_H
 
 #include "MapIso.h"
 #include "Animation.h"
@@ -19,10 +32,10 @@
 
 class Entity {
 protected:
+	SDL_Surface *sprites;
+	Animation *activeAnimation;
 	MapIso* map;
 	vector<Animation*> animations;
-	Animation *activeAnimation;
-	SDL_Surface *sprites;
 
 public:
 	Entity(MapIso*);
@@ -31,15 +44,12 @@ public:
 	bool move();
 	int face(int, int);
 
-	// Logic common to all entities goes here
-	virtual void logic();
-
 	// Each child of Entity defines its own rendering method
 	virtual Renderable getRender() = 0;
 
-	void loadAnimations(std::string filename);
+	void loadAnimations(const std::string& filename);
 
-	bool setAnimation(std::string animation);
+	bool setAnimation(const std::string& animation);
 
 	StatBlock stats;
 };

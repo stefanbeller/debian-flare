@@ -1,16 +1,30 @@
+/*
+Copyright 2011 Clint Bellanger and kitano
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class Entity
  *
  * An Entity represents any character in the game - the player, allies, enemies
  * This base class handles logic common to all of these child classes
- *
- * @author Clint Bellanger
- * @author kitano
- * @license GPL
  */
 
 #include "Entity.h"
 #include "FileParser.h"
+#include "SharedResources.h"
 
 Entity::Entity(MapIso* _map) : sprites(NULL), activeAnimation(NULL), map(_map) {
 }
@@ -94,11 +108,11 @@ int Entity::face(int mapx, int mapy) {
 /**
  * Load the entity's animation from animation definition file
  */
-void Entity::loadAnimations(std::string filename) {
+void Entity::loadAnimations(const std::string& filename) {
 
 	FileParser parser;
 
-	if (!parser.open(PATH_DATA + filename)) {
+	if (!parser.open(mods->locate(filename).c_str())) {
 		cout << "Error loading animation definition file: " << filename << endl;
 		SDL_Quit();
 		exit(1);
@@ -192,7 +206,7 @@ void Entity::loadAnimations(std::string filename) {
 /**
  * Set the entity's current animation by name
 */
-bool Entity::setAnimation(std::string animationName) {
+bool Entity::setAnimation(const std::string& animationName) {
 
 	// if the animation is already the requested one do nothing
 	if (activeAnimation != NULL && activeAnimation->getName() == animationName) {
@@ -211,10 +225,8 @@ bool Entity::setAnimation(std::string animationName) {
 	return false;
 }
 
-void Entity::logic() {
-}
-
 Entity::~Entity () {
+
 	// delete all loaded animations
 	for (vector<Animation*>::const_iterator it = animations.begin(); it != animations.end(); it++)
 	{

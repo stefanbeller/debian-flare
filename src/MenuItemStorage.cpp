@@ -1,16 +1,28 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class MenuItemStorage
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "MenuItemStorage.h"
 
-void MenuItemStorage::init(int _slot_number, ItemDatabase *_items, SDL_Surface *_screen, FontEngine *_font, SDL_Rect _area, int _icon_size, int _nb_cols) {
+void MenuItemStorage::init(int _slot_number, ItemManager *_items, SDL_Rect _area, int _icon_size, int _nb_cols) {
 	ItemStorage::init( _slot_number, _items);
-	screen = _screen;
-	font = _font;
 	area = _area;
 	icon_size = _icon_size;
 	nb_cols = _nb_cols;

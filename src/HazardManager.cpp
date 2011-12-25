@@ -1,10 +1,24 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class HazardManager
  *
  * Holds the collection of hazards (active attacks, spells, etc) and handles group operations
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "HazardManager.h"
@@ -37,16 +51,13 @@ void HazardManager::logic() {
 		
 		// if a moving hazard hits a wall, check for an after-effect
 		if (h[i]->hit_wall && h[i]->wall_power >= 0) {
-			Point pt;
-			StatBlock sb;
-			sb.pos.x = (int)(h[i]->pos.x);
-			sb.pos.y = (int)(h[i]->pos.y);
+			Point target;
+			target.x = (int)(h[i]->pos.x);
+			target.y = (int)(h[i]->pos.y);
 			
-			if (powers->powers[h[i]->wall_power].directional) {
-				pt = round(calcVector(sb.pos,h[i]->direction,64));
-			}
+			powers->activate(h[i]->wall_power, h[i]->src_stats, target);
+			if (powers->powers[h[i]->wall_power].directional) powers->hazards.back()->direction = h[i]->direction;
 			
-			powers->activate(h[i]->wall_power, &sb, pt);
 		}
 		
 	}
@@ -58,17 +69,20 @@ void HazardManager::logic() {
 		if (h[i]->active && h[i]->delay_frames==0 && (h[i]->active_frame == -1 || h[i]->active_frame == h[i]->frame)) {
 	
 			// process hazards that can hurt enemies
-			if (h[i]->src_stats->hero) { //there are no NEUTRAL DAMAGE SOURCES yet
+			if (h[i]->source_type != SOURCE_TYPE_ENEMY) { //hero or neutral sources
 				for (int eindex = 0; eindex < enemies->enemy_count; eindex++) {
 			
 					// only check living enemies
 					if (enemies->enemies[eindex]->stats.hp > 0 && h[i]->active) {
 						if (isWithin(round(h[i]->pos), h[i]->radius, enemies->enemies[eindex]->stats.pos)) {
-							// hit!
-							hit = enemies->enemies[eindex]->takeHit(*h[i]);
-							if (!h[i]->multitarget && hit) {
-								h[i]->active = false;
-								if (!h[i]->complete_animation) h[i]->lifespan = 0;
+							if (!h[i]->hasEntity(enemies->enemies[eindex])) {
+								h[i]->addEntity(enemies->enemies[eindex]);
+								// hit!
+								hit = enemies->enemies[eindex]->takeHit(*h[i]);
+								if (!h[i]->multitarget && hit) {
+									h[i]->active = false;
+									if (!h[i]->complete_animation) h[i]->lifespan = 0;
+								}
 							}
 						}
 					}
@@ -77,14 +91,17 @@ void HazardManager::logic() {
 			}
 		
 			// process hazards that can hurt the hero
-			if (!h[i]->src_stats->hero) {
+			if (h[i]->source_type != SOURCE_TYPE_HERO) { //enemy or neutral sources
 				if (hero->stats.hp > 0 && h[i]->active) {
 					if (isWithin(round(h[i]->pos), h[i]->radius, hero->stats.pos)) {
-						// hit!
-						hit = hero->takeHit(*h[i]);
-						if (!h[i]->multitarget && hit) {
-							h[i]->active = false;
-							if (!h[i]->complete_animation) h[i]->lifespan = 0;
+						if (!h[i]->hasEntity(hero)) {
+							h[i]->addEntity(hero);
+							// hit!
+							hit = hero->takeHit(*h[i]);
+							if (!h[i]->multitarget && hit) {
+								h[i]->active = false;
+								if (!h[i]->complete_animation) h[i]->lifespan = 0;
+							}
 						}
 					}
 				}

@@ -1,7 +1,25 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 #include "GameStateLoad.h"
 #include "GameStateTitle.h"
+#include "SharedResources.h"
 
-GameStateTitle::GameStateTitle(SDL_Surface *_screen, InputState *_inp, FontEngine *_font) : GameState(_screen, _inp, _font) {
+GameStateTitle::GameStateTitle() : GameState() {
 
 	exit_game = false;
 	load_game = false;
@@ -9,22 +27,27 @@ GameStateTitle::GameStateTitle(SDL_Surface *_screen, InputState *_inp, FontEngin
 	loadGraphics();
 	
 	// set up buttons
-	button_play = new WidgetButton(screen, font, inp, "images/menus/buttons/button_default.png");
-	button_exit = new WidgetButton(screen, font, inp, "images/menus/buttons/button_default.png");
+	button_play = new WidgetButton(mods->locate("images/menus/buttons/button_default.png"));
+	button_exit = new WidgetButton(mods->locate("images/menus/buttons/button_default.png"));
 	
-	button_play->label = "Play Game";
+	button_play->label = msg->get("Play Game");
 	button_play->pos.x = VIEW_W_HALF - button_play->pos.w/2;
 	button_play->pos.y = VIEW_H - (button_exit->pos.h*2);
+	button_play->refresh();
 
-	button_exit->label = "Exit Game";
+	button_exit->label = msg->get("Exit Game");
 	button_exit->pos.x = VIEW_W_HALF - button_exit->pos.w/2;
 	button_exit->pos.y = VIEW_H - button_exit->pos.h;
+	button_exit->refresh();
 	
+	// set up labels
+	label_version = new WidgetLabel();
+	label_version->set(VIEW_W, 0, JUSTIFY_RIGHT, VALIGN_TOP, msg->get("Flare Alpha v0.15"), FONT_WHITE);
 }
 
 void GameStateTitle::loadGraphics() {
 
-	logo = IMG_Load((PATH_DATA + "images/menus/logo.png").c_str());
+	logo = IMG_Load(mods->locate("images/menus/logo.png").c_str());
 
 	if(!logo) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
@@ -40,7 +63,7 @@ void GameStateTitle::loadGraphics() {
 void GameStateTitle::logic() {
 
 	if (button_play->checkClick()) {
-		requestedGameState = new GameStateLoad(screen, inp, font);
+		requestedGameState = new GameStateLoad();
 	}
 	
 	if (button_exit->checkClick()) {
@@ -66,12 +89,12 @@ void GameStateTitle::render() {
 	button_exit->render();
 	
 	// version number
-	font->render("Flare Alpha v0.14.1", VIEW_W-2, 2, JUSTIFY_RIGHT, screen, FONT_WHITE);
-	
+	label_version->render();
 }
 
 GameStateTitle::~GameStateTitle() {
 	delete button_play;
 	delete button_exit;
+	delete label_version;
 	SDL_FreeSurface(logo);
 }

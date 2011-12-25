@@ -1,13 +1,31 @@
+/*
+Copyright 2011 kitano
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class MenuExit
- *
- * @author kitano
- * @license GPL
  */
 
 #include "MenuExit.h"
+#include "SharedResources.h"
+#include "WidgetLabel.h"
 
-MenuExit::MenuExit(SDL_Surface *_screen, InputState *_inp, FontEngine *_font) : Menu(_screen, inp = _inp, _font) {
+
+MenuExit::MenuExit() : Menu() {
+
 	exitClicked = false;
 
 	window_area.w = 192;
@@ -15,20 +33,23 @@ MenuExit::MenuExit(SDL_Surface *_screen, InputState *_inp, FontEngine *_font) : 
 	window_area.x = (VIEW_W/2) - (window_area.w/2);
 	window_area.y = (VIEW_H - window_area.h)/2;
 	
-	buttonExit = new WidgetButton(screen, font, inp, "images/menus/buttons/button_default.png");
-	buttonExit->label = "Exit";
+	buttonExit = new WidgetButton(mods->locate("images/menus/buttons/button_default.png"));
+	buttonExit->label = msg->get("Exit");
 	buttonExit->pos.x = VIEW_W_HALF - buttonExit->pos.w/2;
 	buttonExit->pos.y = VIEW_H/2;
+	buttonExit->refresh();
 
-	buttonClose = new WidgetButton(screen, font, inp, "images/menus/buttons/button_x.png");
+	buttonClose = new WidgetButton(mods->locate("images/menus/buttons/button_x.png"));
 	buttonClose->pos.x = window_area.x + window_area.w;
 	buttonClose->pos.y = window_area.y;
+	
+	label.set(window_area.x + window_area.w/2, window_area.y + 10, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Save and exit to title?"), FONT_WHITE);
 
 	loadGraphics();
 }
 
 void MenuExit::loadGraphics() {
-	background = IMG_Load((PATH_DATA + "images/menus/confirm_bg.png").c_str());
+	background = IMG_Load(mods->locate("images/menus/confirm_bg.png").c_str());
 	if(!background) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
 		SDL_Quit();
@@ -61,7 +82,7 @@ void MenuExit::render() {
 	src.h = window_area.h;
 	SDL_BlitSurface(background, &src, screen, &window_area);
 
-	font->render("Save and exit to title?", window_area.x + window_area.w/2, window_area.y + 10, JUSTIFY_CENTER, screen, FONT_WHITE);
+	label.render();
 
 	buttonExit->render();
 	buttonClose->render();

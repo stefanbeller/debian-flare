@@ -1,23 +1,36 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class MapIso
  *
  * Isometric map data structure and rendering
- *
- * @author Clint Bellanger
- * @license GPL
  */
  
 #include "MapIso.h"
 #include "FileParser.h"
+#include "SharedResources.h"
 
-MapIso::MapIso(SDL_Surface *_screen, CampaignManager *_camp, InputState *_inp, FontEngine *_font) {
 
-	inp = _inp;
-	screen = _screen;
+MapIso::MapIso(CampaignManager *_camp) {
+
 	camp = _camp;
-	font = _font;
 	
-	tip = new MenuTooltip(font, screen);
+	tip = new WidgetTooltip();
 
 	// cam(x,y) is where on the map the camera is pointing
 	// units found in Settings.h (UNITS_PER_TILE)
@@ -37,7 +50,6 @@ MapIso::MapIso(SDL_Surface *_screen, CampaignManager *_camp, InputState *_inp, F
 	music = NULL;
 	log_msg = "";
 	shaky_cam_ticks = 0;
-	
 }
 
 
@@ -52,13 +64,19 @@ void MapIso::clearEvents() {
 		events[i].comp_num = 0;
 		events[i].tooltip = "";
 		events[i].hotspot.x = events[i].hotspot.y = events[i].hotspot.h = events[i].hotspot.w = 0;
-		for (int j=0; j<8; j++) {
+		for (int j=0; j<256; j++) {
 			events[i].components[j].type = "";
 			events[i].components[j].s = "";
 			events[i].components[j].x = 0;
 			events[i].components[j].y = 0;
 			events[i].components[j].z = 0;
 		}
+		events[i].power_src.x = events[i].power_src.y = 0;
+		events[i].power_dest.x = events[i].power_dest.y = 0;
+		events[i].targetHero = false;
+		events[i].damagemin = events[i].damagemax = 0;
+		events[i].power_cooldown = 0;
+		events[i].cooldown_ticks = 0;
 	}
 	event_count = 0;
 }
@@ -72,20 +90,20 @@ void MapIso::removeEvent(int eid) {
 	event_count--;
 }
 
-void MapIso::clearEnemy(Map_Enemy e) {
+void MapIso::clearEnemy(Map_Enemy &e) {
 	e.pos.x = 0;
 	e.pos.y = 0;
-	e.direction = 0;
+	e.direction = rand() % 8; // enemies face a random direction unless otherwise specified
 	e.type = "";
 }
 
-void MapIso::clearNPC(Map_NPC n) {
+void MapIso::clearNPC(Map_NPC &n) {
 	n.id = "";
 	n.pos.x = 0;
 	n.pos.y = 0;
 }
 
-void MapIso::clearGroup(Map_Group g) {
+void MapIso::clearGroup(Map_Group &g) {
 	g.category = "";
 	g.pos.x = 0;
 	g.pos.y = 0;
@@ -95,55 +113,62 @@ void MapIso::clearGroup(Map_Group g) {
 	g.levelmax = 0;
 	g.numbermin = 0;
 	g.numbermax = 0;
+	g.chance = 1.0f;
 }
 
 void MapIso::playSFX(string filename) {
 	// only load from file if the requested soundfx isn't already loaded
 	if (filename != sfx_filename) {
 		if (sfx) Mix_FreeChunk(sfx);
-		sfx = Mix_LoadWAV((PATH_DATA + filename).c_str());
+		sfx = Mix_LoadWAV((mods->locate(filename)).c_str());
 		sfx_filename = filename;
 	}
 	if (sfx) Mix_PlayChannel(-1, sfx, 0);	
 }
 
-void MapIso::push_enemy_group(Map_Group g){
-	//TODO: move this to beginning of program execution
-	EnemyGroupManager category_list;
-	category_list.generate();
-	
+void MapIso::push_enemy_group(Map_Group g) {
+	// activate at all?
+	float activate_chance = (rand() % 100) / 100.0f;
+	if (activate_chance > g.chance) {
+		return;
+	}
+
+	// populate valid_locations
+	vector<Point> valid_locations;
+	Point pt;
+	for (int width = 0; width < g.area.x; width++) {
+		for (int height = 0; height < g.area.y; height++) {
+			pt.x = (g.pos.x + width) * UNITS_PER_TILE + UNITS_PER_TILE / 2;
+			pt.y = (g.pos.y + height) * UNITS_PER_TILE + UNITS_PER_TILE / 2;
+			if (collider.is_empty(pt.x, pt.y)) {
+				valid_locations.push_back(pt);
+			}
+		}
+	}
+	//remove locations that already have an enemy on them
+	Map_Enemy test_enemy;
+	for (size_t i = 0; i < enemies.size(); i++) {
+		test_enemy = enemies.front();
+		enemies.pop();
+		enemies.push(test_enemy);
+		for (size_t j = 0; j < valid_locations.size(); j++) {
+			if ( (test_enemy.pos.x == valid_locations.at(j).x) && (test_enemy.pos.y == valid_locations.at(j).y) ) {
+				valid_locations.erase(valid_locations.begin() + j);
+			}
+		}
+	}
+
+	// spawn the appropriate number of enemies
 	int number = rand() % (g.numbermax + 1 - g.numbermin) + g.numbermin;
 
 	for(int i = 0; i < number; i++) {
-		Enemy_Level enemy_lev;
+		Enemy_Level enemy_lev = EnemyGroupManager::instance().getRandomEnemy(g.category, g.levelmin, g.levelmax);
 		Map_Enemy group_member;
-		enemy_lev = category_list.random_enemy(g.category, g.levelmin, g.levelmax);
-		if (enemy_lev.type != ""){
-			Point target;
-			bool respawn_flag = true;
-
+		if ((enemy_lev.type != "") && (valid_locations.size() != 0)){
 			group_member.type = enemy_lev.type;
-			target.x = (g.pos.x + rand() % g.area.x) * UNITS_PER_TILE + UNITS_PER_TILE/2;
-			target.y = (g.pos.y + rand() % g.area.y) * UNITS_PER_TILE + UNITS_PER_TILE/2;
-			Map_Enemy test_enemy;
-
-			int spawn_attempts = 300; //Only attempt this many random spawns before giving up. If you reach this number frequently, you're probably using [enemygroup] in a bad area.
-			for (int spawn_counter = 0; spawn_counter < spawn_attempts; spawn_counter++) {
-				if (spawn_counter == spawn_attempts - 1) cout << "Warning: random enemy spawner could not place unit after " << spawn_attempts << " attempts!" << endl;
-				if (!respawn_flag) break;
-				respawn_flag = false;
-				target.x = (g.pos.x + rand() % g.area.x) * UNITS_PER_TILE + UNITS_PER_TILE/2;
-				target.y = (g.pos.y + rand() % g.area.y) * UNITS_PER_TILE + UNITS_PER_TILE/2;
-				respawn_flag = !collider.is_empty(target.x, target.y);
-				for (int n = 0; n < enemies.size(); n++) {
-					test_enemy = enemies.front();
-					enemies.pop();
-					enemies.push(test_enemy);
-					if ((test_enemy.pos.x == target.x) && (test_enemy.pos.y == target.y)) respawn_flag = true;
-				}
-			}
-			group_member.pos.x = target.x;
-			group_member.pos.y = target.y;
+			int index = rand() % valid_locations.size();
+			group_member.pos = valid_locations.at(index);
+			valid_locations.erase(valid_locations.begin() + index);
 			group_member.direction = rand() % 8;
 			enemies.push(group_member);
 		}
@@ -164,7 +189,7 @@ int MapIso::load(string filename) {
 	event_count = 0;
 	bool collider_set = false;
   
-	if (infile.open(PATH_DATA + "maps/" + filename)) {
+	if (infile.open(mods->locate("maps/" + filename))) {
 		while (infile.next()) {
 			if (infile.new_section) {
 				data_format = "dec"; // default
@@ -177,7 +202,7 @@ int MapIso::load(string filename) {
 					npcs.push(new_npc);
 					npc_awaiting_queue = false;
 				}
-				if (group_awaiting_queue){
+				if (group_awaiting_queue) {
 					push_enemy_group(new_group);
 					group_awaiting_queue = false;
 				}
@@ -202,7 +227,7 @@ int MapIso::load(string filename) {
 			}
 			if (infile.section == "header") {
 				if (infile.key == "title") {
-					this->title = infile.val;
+					this->title = msg->get(infile.val);
 				}
 				else if (infile.key == "width") {
 					this->w = atoi(infile.val.c_str());
@@ -222,14 +247,14 @@ int MapIso::load(string filename) {
 						this->new_music = true;
 					}
 				}
-				else if (infile.key == "spawnpoint") {
+				else if (infile.key == "location") {
 					spawn.x = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
 					spawn.y = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
 					spawn_dir = atoi(infile.nextValue().c_str());
 				}
 			}
 			else if (infile.section == "layer") {
-				if (infile.key == "id") {
+				if (infile.key == "type") {
 					cur_layer = infile.val;
 				}
 				else if (infile.key == "format") {
@@ -270,21 +295,23 @@ int MapIso::load(string filename) {
 				if (infile.key == "type") {
 					new_enemy.type = infile.val;
 				}
-				else if (infile.key == "spawnpoint") {
+				else if (infile.key == "location") {
 					new_enemy.pos.x = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
 					new_enemy.pos.y = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
-					new_enemy.direction = atoi(infile.nextValue().c_str());
+				}
+				else if (infile.key == "direction") {
+					new_enemy.direction = atoi(infile.val.c_str());
 				}
 			}
 			else if (infile.section == "enemygroup") {
-				if (infile.key == "category") {
+				if (infile.key == "type") {
 					new_group.category = infile.val;
 				}
 				else if (infile.key == "level") {
 					new_group.levelmin = atoi(infile.nextValue().c_str());
 					new_group.levelmax = atoi(infile.nextValue().c_str());
 				}
-				else if (infile.key == "area") {
+				else if (infile.key == "location") {
 					new_group.pos.x = atoi(infile.nextValue().c_str());
 					new_group.pos.y = atoi(infile.nextValue().c_str());
 					new_group.area.x = atoi(infile.nextValue().c_str());
@@ -294,12 +321,21 @@ int MapIso::load(string filename) {
 					new_group.numbermin = atoi(infile.nextValue().c_str());
 					new_group.numbermax = atoi(infile.nextValue().c_str());
 				}
+				else if (infile.key == "chance") {
+					new_group.chance = atoi(infile.nextValue().c_str()) / 100.0f;
+					if (new_group.chance > 1.0f) {
+						new_group.chance = 1.0f;
+					}
+					if (new_group.chance < 0.0f) {
+						new_group.chance = 0.0f;
+					}
+				}
 			}
 			else if (infile.section == "npc") {
-				if (infile.key == "id") {
+				if (infile.key == "type") {
 					new_npc.id = infile.val;
 				}
-				else if (infile.key == "position") {
+				else if (infile.key == "location") {
 					new_npc.pos.x = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
 					new_npc.pos.y = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
 				}
@@ -321,7 +357,26 @@ int MapIso::load(string filename) {
 					events[event_count-1].hotspot.h = atoi(infile.nextValue().c_str());
 				}
 				else if (infile.key == "tooltip") {
-					events[event_count-1].tooltip = infile.val;
+					events[event_count-1].tooltip = msg->get(infile.val);
+				}
+				else if (infile.key == "power_path") {
+					events[event_count-1].power_src.x = atoi(infile.nextValue().c_str());
+					events[event_count-1].power_src.y = atoi(infile.nextValue().c_str());
+					string dest = infile.nextValue();
+					if (dest == "hero") {
+						events[event_count-1].targetHero = true;
+					}
+					else {
+						events[event_count-1].power_dest.x = atoi(dest.c_str());
+						events[event_count-1].power_dest.y = atoi(infile.nextValue().c_str());
+					}
+				}
+				else if (infile.key == "power_damage") {
+					events[event_count-1].damagemin = atoi(infile.nextValue().c_str());
+					events[event_count-1].damagemax = atoi(infile.nextValue().c_str());
+				}
+				else if (infile.key == "power_cooldown") {
+					events[event_count-1].power_cooldown = atoi(infile.val.c_str());
 				}
 				else {
 					// new event component
@@ -349,7 +404,7 @@ int MapIso::load(string filename) {
 						e->z = atoi(infile.nextValue().c_str());
 					}
 					else if (infile.key == "msg") {
-						e->s = infile.val;
+						e->s = msg->get(infile.val);
 					}
 					else if (infile.key == "shakycam") {
 						e->x = atoi(infile.val.c_str());
@@ -373,6 +428,9 @@ int MapIso::load(string filename) {
 						e->x = atoi(infile.val.c_str());
 					}
 					else if (infile.key == "reward_xp") {
+						e->x = atoi(infile.val.c_str());
+					}
+					else if (infile.key == "power") {
 						e->x = atoi(infile.val.c_str());
 					}
 					
@@ -416,7 +474,7 @@ void MapIso::loadMusic() {
 		Mix_FreeMusic(music);
 		music = NULL;
 	}
-	music = Mix_LoadMUS((PATH_DATA + "music/" + this->music_filename).c_str());
+	music = Mix_LoadMUS((mods->locate("music/" + this->music_filename)).c_str());
 	if (!music) {
 	  printf("Mix_LoadMUS: %s\n", Mix_GetError());
 	  SDL_Quit();
@@ -534,7 +592,7 @@ void MapIso::render(Renderable r[], int rnum) {
 					dest.x = VIEW_W_HALF + (r[r_cursor].map_pos.x/UNITS_PER_PIXEL_X - xcam.x) - (r[r_cursor].map_pos.y/UNITS_PER_PIXEL_X - xcam.y) - r[r_cursor].offset.x;
 					dest.y = VIEW_H_HALF + (r[r_cursor].map_pos.x/UNITS_PER_PIXEL_Y - ycam.x) + (r[r_cursor].map_pos.y/UNITS_PER_PIXEL_Y - ycam.y) - r[r_cursor].offset.y;
 
-					SDL_BlitSurface(r[r_cursor].sprite, &r[r_cursor].src, screen, &dest);				
+					SDL_BlitSurface(r[r_cursor].sprite, &r[r_cursor].src, screen, &dest);	
 				}
 				
 				r_cursor++;
@@ -544,6 +602,7 @@ void MapIso::render(Renderable r[], int rnum) {
 	}
 	//render event tooltips
 	checkTooltip();
+	
 }
 
 
@@ -643,14 +702,17 @@ void MapIso::checkTooltip() {
 		*/
 		
 		if (isWithin(r,inp->mouse) && events[i].tooltip != "") {
-			TooltipData td;
-			td.num_lines = 1;
-			td.colors[0] = FONT_WHITE;
-			td.lines[0] = events[i].tooltip;
+		
+			// new tooltip?
+			if (tip_buf.lines[0] != events[i].tooltip) {
+				tip->clear(tip_buf);
+				tip_buf.num_lines = 1;
+				tip_buf.lines[0] = events[i].tooltip;
+			}
 			
 			tip_pos.x = r.x + r.w/2;
 			tip_pos.y = r.y;
-			tip->render(td, tip_pos, STYLE_TOPLABEL);
+			tip->render(tip_buf, tip_pos, STYLE_TOPLABEL);
 		}
 	}
 }
@@ -663,6 +725,8 @@ void MapIso::checkTooltip() {
  */
 void MapIso::executeEvent(int eid) {
 	Event_Component *ec;
+	bool destroy_event = false;
+	
 	for (int i=0; i<events[eid].comp_num; i++) {
 		ec = &events[eid].components[i];
 		
@@ -682,10 +746,17 @@ void MapIso::executeEvent(int eid) {
 			camp->unsetStatus(ec->s);
 		}
 		if (ec->type == "intermap") {
-			teleportation = true;
-			teleport_mapname = ec->s;
-			teleport_destination.x = ec->x * UNITS_PER_TILE + UNITS_PER_TILE/2;
-			teleport_destination.y = ec->y * UNITS_PER_TILE + UNITS_PER_TILE/2;
+		
+			if (fileExists(mods->locate("maps/" + ec->s))) {
+				teleportation = true;
+				teleport_mapname = ec->s;
+				teleport_destination.x = ec->x * UNITS_PER_TILE + UNITS_PER_TILE/2;
+				teleport_destination.y = ec->y * UNITS_PER_TILE + UNITS_PER_TILE/2;
+			}
+			else {
+				destroy_event = true;
+				log_msg = msg->get("Unknown destination");
+			}
 		}
 		else if (ec->type == "mapmod") {
 			if (ec->s == "collision") {
@@ -717,8 +788,31 @@ void MapIso::executeEvent(int eid) {
 		else if (ec->type == "reward_xp") {
 			camp->rewardXP(ec->x);
 		}
+		else if (ec->type == "power") {
+			int power_index = ec->x;
+			StatBlock *dummy = new StatBlock();
+			dummy->accuracy = 1000; //always hits its target
+			dummy->pos.x = events[eid].power_src.x * UNITS_PER_TILE;
+			dummy->pos.y = events[eid].power_src.y * UNITS_PER_TILE;
+			dummy->dmg_melee_min = dummy->dmg_ranged_min = dummy->dmg_ment_min = events[eid].damagemin;
+			dummy->dmg_melee_max = dummy->dmg_ranged_max = dummy->dmg_ment_max = events[eid].damagemax;
+			Point target;
+			if (events[eid].targetHero) {
+				target.x = cam.x;
+				target.y = cam.y;
+			}
+			else {
+				target.x = events[eid].power_dest.x * UNITS_PER_TILE;
+				target.y = events[eid].power_dest.y * UNITS_PER_TILE;
+			}
+			if (events[eid].cooldown_ticks > 0) events[eid].cooldown_ticks--;
+			else {
+				events[eid].cooldown_ticks = events[eid].power_cooldown;
+				powers->activate(power_index, dummy, target);
+			}
+		}
 	}
-	if (events[eid].type == "run_once") {
+	if (events[eid].type == "run_once" || destroy_event) {
 		removeEvent(eid);
 	}
 }
@@ -729,5 +823,8 @@ MapIso::~MapIso() {
 		Mix_FreeMusic(music);
 	}
 	if (sfx) Mix_FreeChunk(sfx);
+	
+	tip->clear(tip_buf);
+	delete tip;
 }
 

@@ -1,12 +1,26 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * Save and Load functions for the GameStatePlay.
  *
  * I put these in a separate cpp file just to keep GameStatePlay.cpp devoted to its core.
  *
  * class GameStatePlay
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "GameStatePlay.h"
@@ -130,12 +144,22 @@ void GameStatePlay::loadGame() {
 			}
 			else if (infile.key == "spawn") {
 				map->teleport_mapname = infile.nextValue();
-				map->teleport_destination.x = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
-				map->teleport_destination.y = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
-				map->teleportation = true;
 				
-				// prevent spawn.txt from putting us on the starting map
-				map->clearEvents();
+				if (fileExists(mods->locate("maps/" + map->teleport_mapname))) {
+					map->teleport_destination.x = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
+					map->teleport_destination.y = atoi(infile.nextValue().c_str()) * UNITS_PER_TILE + UNITS_PER_TILE/2;
+					map->teleportation = true;
+				
+					// prevent spawn.txt from putting us on the starting map
+					map->clearEvents();
+				}
+				else {
+					map->teleport_mapname = "spawn.txt";
+					map->teleport_destination.x = 1;
+					map->teleport_destination.y = 1;
+					map->teleportation = true;
+					
+				}
 			}
 			else if (infile.key == "actionbar") {
 				for (int i=0; i<12; i++)
@@ -150,10 +174,13 @@ void GameStatePlay::loadGame() {
 
 	// initialize vars
 	pc->stats.recalc();
-	menu->inv->applyEquipment(&pc->stats, menu->inv->inventory[EQUIPMENT].storage);
+	menu->inv->applyEquipment(menu->inv->inventory[EQUIPMENT].storage);
 	pc->stats.hp = pc->stats.maxhp;
 	pc->stats.mp = pc->stats.maxmp;
-			
+	
+	// reset character menu
+	menu->chr->refreshStats();
+	
 	// just for aesthetics, turn the hero to face the camera
 	pc->stats.direction = 6;
 	

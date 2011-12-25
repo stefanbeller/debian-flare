@@ -1,18 +1,35 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class MenuActionBar
  *
  * Handles the config, display, and usage of the 0-9 hotkeys, mouse buttons, and menu calls
- *
- * @author Clint Bellanger
- * @license GPL
  */
  
 #include "MenuActionBar.h"
+#include "SharedResources.h"
+#include "WidgetLabel.h"
 
-MenuActionBar::MenuActionBar(SDL_Surface *_screen, FontEngine *_font, InputState *_inp, PowerManager *_powers, StatBlock *_hero, SDL_Surface *_icons) {
-	screen = _screen;
-	font = _font;
-	inp = _inp;
+#include <string>
+#include <sstream>
+
+
+MenuActionBar::MenuActionBar(PowerManager *_powers, StatBlock *_hero, SDL_Surface *_icons) {
 	powers = _powers;
 	hero = _hero;
 	icons = _icons;
@@ -69,6 +86,10 @@ void MenuActionBar::clear() {
 		slot_item_count[i] = -1;
 		slot_enabled[i] = true;
 	}
+
+    // clear menu notifications
+    for (int i=0; i<4; i++) 
+        requires_attention[i] = false;
 	
 	// default: LMB set to basic melee attack
 	hotkeys[10] = 1;
@@ -76,10 +97,11 @@ void MenuActionBar::clear() {
 
 void MenuActionBar::loadGraphics() {
 
-	emptyslot = IMG_Load((PATH_DATA + "images/menus/slot_empty.png").c_str());
-	background = IMG_Load((PATH_DATA + "images/menus/actionbar_trim.png").c_str());
-	labels = IMG_Load((PATH_DATA + "images/menus/actionbar_labels.png").c_str());
-	disabled = IMG_Load((PATH_DATA + "images/menus/disabled.png").c_str());
+	emptyslot = IMG_Load(mods->locate("images/menus/slot_empty.png").c_str());
+	background = IMG_Load(mods->locate("images/menus/actionbar_trim.png").c_str());
+	labels = IMG_Load(mods->locate("images/menus/actionbar_labels.png").c_str());
+	disabled = IMG_Load(mods->locate("images/menus/disabled.png").c_str());
+	attention = IMG_Load(mods->locate("images/menus/attention_glow.png").c_str());
 	if(!emptyslot || !background || !labels || !disabled) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
 		SDL_Quit();
@@ -100,23 +122,37 @@ void MenuActionBar::loadGraphics() {
 	
 	cleanup = disabled;
 	disabled = SDL_DisplayFormatAlpha(disabled);
-	SDL_FreeSurface(cleanup);	
-	
+	SDL_FreeSurface(cleanup);
+
+	cleanup = attention;
+	attention = SDL_DisplayFormatAlpha(attention);
+	SDL_FreeSurface(cleanup);
 }
 
 /**
  * generic render 32-pixel icon
  */
 void MenuActionBar::renderIcon(int icon_id, int x, int y) {
-	SDL_Rect src;
-	SDL_Rect dest;
+	SDL_Rect icon_src;
+	SDL_Rect icon_dest;
 	
-	dest.x = x;
-	dest.y = y;
-	src.w = src.h = dest.w = dest.h = 32;
-	src.x = (icon_id % 16) * 32;
-	src.y = (icon_id / 16) * 32;
-	SDL_BlitSurface(icons, &src, screen, &dest);		
+	icon_dest.x = x;
+	icon_dest.y = y;
+	icon_src.w = icon_src.h = icon_dest.w = icon_dest.h = 32;
+	icon_src.x = (icon_id % 16) * 32;
+	icon_src.y = (icon_id / 16) * 32;
+	SDL_BlitSurface(icons, &icon_src, screen, &icon_dest);
+}
+
+// Renders the "needs attention" icon over the appropriate log menu
+void MenuActionBar::renderAttention(int menu_id) {
+	SDL_Rect dest;
+
+    // x-value is 12 hotkeys and 4 empty slots over
+	dest.x = (VIEW_W - 640)/2 + (menu_id * 32) + 32*15;
+	dest.y = VIEW_H-32;
+    dest.w = dest.h = 32;
+	SDL_BlitSurface(attention, NULL, screen, &dest);		
 }
 
 void MenuActionBar::logic() {
@@ -162,7 +198,13 @@ void MenuActionBar::render() {
 		}
 	}
 	
+	renderCooldowns();
 	renderItemCounts();
+
+    // render log attention notifications
+    for (int i=0; i<4; i++)
+        if (requires_attention[i])
+            renderAttention(i);
 	
 	// draw hotkey labels
 	// TODO: keybindings
@@ -175,28 +217,53 @@ void MenuActionBar::render() {
 }
 
 /**
+ * Display a notification for any power on cooldown
+ * Also displays disabled powers
+ */
+void MenuActionBar::renderCooldowns() {
+
+	SDL_Rect item_src;
+	SDL_Rect item_dest;
+	
+	for (int i=0; i<12; i++) {
+		if (!slot_enabled[i]) {
+		
+			item_src.x = 0;
+			item_src.y = 0;
+			item_src.h = 32;
+			item_src.w = 32;
+			
+			// Wipe from bottom to top
+			if (hero->hero_cooldown[hotkeys[i]]) {
+				item_src.h = 32 * (hero->hero_cooldown[hotkeys[i]] / (float)powers->powers[hotkeys[i]].cooldown);
+			}
+			
+			// SDL_BlitSurface will write to these Rects, so make a copy
+			item_dest.x = slots[i].x;
+			item_dest.y = slots[i].y;
+			item_dest.w = slots[i].w;
+			item_dest.h = slots[i].h;
+			
+			SDL_BlitSurface(disabled, &item_src, screen, &item_dest);
+		}
+	}
+}
+
+/**
  * For powers that have consumables, display the number of consumables remaining
  */
 void MenuActionBar::renderItemCounts() {
 
 	stringstream ss;
-	SDL_Rect src;
-	
+
 	for (int i=0; i<12; i++) {
-
-		if (!slot_enabled[i]) {
-			src.x = src.y = 0;
-			src.w = src.h = 32;
-			SDL_BlitSurface(disabled, &src, screen, &slots[i]);
-		}
-
 		if (slot_item_count[i] > -1) {
-		
-
 			ss.str("");
 			ss << slot_item_count[i];
 	
-			font->render(ss.str(), slots[i].x, slots[i].y, JUSTIFY_LEFT, screen, FONT_WHITE);
+			WidgetLabel label;
+			label.set(slots[i].x, slots[i].y, JUSTIFY_LEFT, VALIGN_TOP, ss.str(), FONT_WHITE);
+			label.render();
 		}
 	}
 }
@@ -209,19 +276,19 @@ TooltipData MenuActionBar::checkTooltip(Point mouse) {
 	
 	//int offset_x = (VIEW_W - 640)/2;
 	if (isWithin(menus[0], mouse)) {
-		tip.lines[tip.num_lines++] = "Character Menu (C)";
+		tip.lines[tip.num_lines++] = msg->get("Character Menu (C)");
 		return tip;
 	}
 	if (isWithin(menus[1], mouse)) {
-		tip.lines[tip.num_lines++] = "Inventory Menu (I)";
+		tip.lines[tip.num_lines++] = msg->get("Inventory Menu (I)");
 		return tip;
 	}
 	if (isWithin(menus[2], mouse)) {
-		tip.lines[tip.num_lines++] = "Powers Menu (P)";
+		tip.lines[tip.num_lines++] = msg->get("Power Menu (P)");
 		return tip;
 	}
 	if (isWithin(menus[3], mouse)) {
-		tip.lines[tip.num_lines++] = "Log Menu (L)";
+		tip.lines[tip.num_lines++] = msg->get("Log Menu (L)");
 		return tip;
 	}
 	for (int i=0; i<12; i++) {
@@ -274,7 +341,7 @@ int MenuActionBar::checkAction(Point mouse) {
 			if (isWithin(slots[i], mouse) && slot_enabled[i]) {
 
 				return hotkeys[i];
-			}	
+			}
 		}
 	}
 	

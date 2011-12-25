@@ -1,28 +1,45 @@
-/**
- * Generic main.cpp for game engines
- *
- */
-   
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
 #include <ctime>
-#include "SDL.h"
-#include "SDL_image.h"
-#include "SDL_mixer.h"
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
 
 using namespace std;
 
 #include "Settings.h"
-#include "InputState.h"
 #include "GameSwitcher.h"
+#include "SharedResources.h"
 
-SDL_Surface *screen;
-InputState *inps;
 GameSwitcher *gswitch;
 
 static void init() {
+
+	setPaths();
+
+	if (!loadSettings()) {
+		fprintf(stderr, "Error: could not load config/settings.txt.\n");
+		exit(1);
+	}
 
 	// SDL Inits
 	if ( SDL_Init (SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK) < 0 ) {		
@@ -35,10 +52,20 @@ static void init() {
 	if (FULLSCREEN) flags = flags | SDL_FULLSCREEN;
 	if (DOUBLEBUF) flags = flags | SDL_DOUBLEBUF;
 	if (HWSURFACE)
-		flags = flags | SDL_HWSURFACE;
+		flags = flags | SDL_HWSURFACE | SDL_HWACCEL;
 	else
 		flags = flags | SDL_SWSURFACE;
+
+	// Shared Resources set-up
 	
+	mods = new ModManager();
+	msg = new MessageEngine();
+	inp = new InputState();
+	font = new FontEngine();
+
+	// Add Window Titlebar Icon
+	SDL_WM_SetIcon(IMG_Load(mods->locate("images/logo/icon.png").c_str()),NULL);
+
 	// Create window
 	screen = SDL_SetVideoMode (VIEW_W, VIEW_H, 0, flags);
 	if (screen == NULL) {
@@ -48,28 +75,38 @@ static void init() {
 		exit(1);
 	}
 	
-	if (Mix_OpenAudio(22050, AUDIO_S16, 2, 1024)) {
+	if (Mix_OpenAudio(22050, AUDIO_S16SYS, 2, 1024)) {
 		fprintf (stderr, "Error during Mix_OpenAudio: %s\n", SDL_GetError());
 		SDL_Quit();
 		exit(1);
 	}
-
-	if(SDL_NumJoysticks() > 0) {
-		printf("%i joystick(s) were found:\n", SDL_NumJoysticks());
-		for (int i = 0; i < SDL_NumJoysticks(); i++) {
-			printf("\t%i. %s\n", SDL_NumJoysticks(), SDL_JoystickName(i));
-		}
-		SDL_JoystickOpen(0);
+	
+    // initialize Joysticks
+	if(SDL_NumJoysticks() == 1) {
+		printf("1 joystick was found:\n");
 	}
-	
-	SDL_WM_SetCaption("Flare", "Flare");
-	
+	else if(SDL_NumJoysticks() > 1) {
+		printf("%d joysticks were found:\n", SDL_NumJoysticks());
+	}
+	else {
+		printf("No joysticks were found\n");
+	}
+	for(int i = 0; i < SDL_NumJoysticks(); i++)
+	{
+		SDL_JoystickOpen(i);
+		printf("  Joy %d) %s\n", i, SDL_JoystickName(i));
+	}
+	printf("Using joystick #%d\n", JOYSTICK_DEVICE);
+
 	// Set sound effects volume from settings file
 	Mix_Volume(-1, SOUND_VOLUME);
 
-	/* Shared game units setup */
-	inps = new InputState();
-	gswitch = new GameSwitcher(screen, inps);
+	// Window title
+	const char* title = msg->get("Flare").c_str();
+	SDL_WM_SetCaption(title, title);
+	
+
+	gswitch = new GameSwitcher();
 }
 
 static void mainLoop () {
@@ -86,13 +123,13 @@ static void mainLoop () {
 		SDL_FillRect(screen, NULL, 0);
 
 		SDL_PumpEvents();
-		inps->handle();
+		inp->handle();
 		gswitch->logic();
 		gswitch->render();
 		
 		// Engine done means the user escapes the main game menu.
 		// Input done means the user closes the window.
-		done = gswitch->done || inps->done;
+		done = gswitch->done || inp->done;
 		
 		nowTicks = SDL_GetTicks();
 		if (nowTicks - prevTicks < delay) SDL_Delay(delay - (nowTicks - prevTicks));
@@ -104,28 +141,26 @@ static void mainLoop () {
 	}
 }
 
-int main(int argc, char *argv[])
-{
-	
-	srand((unsigned int)time(NULL));
-
-	setPaths();
-
-	if (!loadSettings()) {
-		fprintf(stderr, "Error: could not load config/settings.txt. Check your permissions and working directory.");
-		return 1;
-	}
-	
-	init();
-	mainLoop();
-	
-	// cleanup
-	// TODO: halt all sounds here before freeing music/chunks
+static void cleanup() {
 	delete gswitch;
-	delete inps;
+	
+	delete font;
+	delete inp;
+	delete msg;
+	delete mods;
 	SDL_FreeSurface(screen);
+	
 	Mix_CloseAudio();
 	SDL_Quit();
+}
+
+int main(int argc, char *argv[])
+{	
+	srand((unsigned int)time(NULL));
 	
+	init();
+	mainLoop();	
+	cleanup();
+
 	return 0;
 }

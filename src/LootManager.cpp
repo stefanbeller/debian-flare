@@ -1,19 +1,35 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class LootManager
  *
  * Handles floor loot
- *
- * @author Clint Bellanger
- * @license GPL
  */
  
 #include "LootManager.h"
+#include "SharedResources.h"
  
-LootManager::LootManager(ItemDatabase *_items, MenuTooltip *_tip, EnemyManager *_enemies, MapIso *_map) {
+LootManager::LootManager(ItemManager *_items, EnemyManager *_enemies, MapIso *_map) {
 	items = _items;
-	tip = _tip;
 	enemies = _enemies; // we need to be able to read loot state when creatures die
 	map = _map; // we need to be able to read loot that drops from map containers
+
+	tip = new WidgetTooltip();
 	
 	tooltip_margin = 32; // pixels between loot drop center and label
 	
@@ -47,7 +63,7 @@ LootManager::LootManager(ItemDatabase *_items, MenuTooltip *_tip, EnemyManager *
 	
 	loadGraphics();
 	calcTables();
-	loot_flip = Mix_LoadWAV((PATH_DATA + "soundfx/flying_loot.ogg").c_str());
+	loot_flip = Mix_LoadWAV(mods->locate("soundfx/flying_loot.ogg").c_str());
 	full_msg = false;
 	
 	anim_loot_frames = 6;
@@ -78,7 +94,7 @@ void LootManager::loadGraphics() {
 			}
 			
 			if (new_anim) {
-				flying_loot[animation_count] = IMG_Load((PATH_DATA + "images/loot/" + anim_id + ".png").c_str());
+				flying_loot[animation_count] = IMG_Load(mods->locate("images/loot/" + anim_id + ".png").c_str());
 				
 				if (flying_loot[animation_count]) {
 					animation_id[animation_count] = anim_id;
@@ -89,9 +105,9 @@ void LootManager::loadGraphics() {
 	}
 	
 	// gold
-	flying_gold[0] = IMG_Load((PATH_DATA + "images/loot/coins5.png").c_str());
-	flying_gold[1] = IMG_Load((PATH_DATA + "images/loot/coins25.png").c_str());
-	flying_gold[2] = IMG_Load((PATH_DATA + "images/loot/coins100.png").c_str());
+	flying_gold[0] = IMG_Load(mods->locate("images/loot/coins5.png").c_str());
+	flying_gold[1] = IMG_Load(mods->locate("images/loot/coins25.png").c_str());
+	flying_gold[2] = IMG_Load(mods->locate("images/loot/coins100.png").c_str());
 	
 	// set magic pink transparency
 	for (int i=0; i<animation_count; i++) {
@@ -154,6 +170,9 @@ void LootManager::calcTables() {
 }
 
 void LootManager::handleNewMap() {
+	for (int i=0; i<loot_count; i++) {
+		tip->clear(loot[i].tip);
+	}
 	loot_count = 0;
 }
 
@@ -201,30 +220,36 @@ void LootManager::renderTooltips(Point cam) {
 	ycam.y = cam.y/UNITS_PER_PIXEL_Y;
 	
 	Point dest;
-	TooltipData td;
 	stringstream ss;
 	
 	int max_frame = anim_loot_frames * anim_loot_duration - 1;
 	
 	for (int i = 0; i < loot_count; i++) {			
 		if (loot[i].frame == max_frame) {
+		
+		
 			dest.x = VIEW_W_HALF + (loot[i].pos.x/UNITS_PER_PIXEL_X - xcam.x) - (loot[i].pos.y/UNITS_PER_PIXEL_X - xcam.y);
 			dest.y = VIEW_H_HALF + (loot[i].pos.x/UNITS_PER_PIXEL_Y - ycam.x) + (loot[i].pos.y/UNITS_PER_PIXEL_Y - ycam.y) + (TILE_H/2);
 		
 			// adjust dest.y so that the tooltip floats above the item
 			dest.y -= tooltip_margin;
-			if (loot[i].stack.item > 0) {
-				td = items->getShortTooltip(loot[i].stack);
-			}
-			else {
-				td.num_lines = 1;
-				td.colors[0] = FONT_WHITE;
-				ss << loot[i].gold << " Gold";
-				td.lines[0] = ss.str();
-				ss.str("");
+
+			// create tooltip data if needed
+			if (loot[i].tip.tip_buffer == NULL) {
+
+				if (loot[i].stack.item > 0) {
+					loot[i].tip = items->getShortTooltip(loot[i].stack);
+				}
+				else {
+					loot[i].tip.num_lines = 1;
+					loot[i].tip.colors[0] = FONT_WHITE;
+					ss << msg->get("%d Gold", loot[i].gold);
+					loot[i].tip.lines[0] = ss.str();
+					ss.str("");
+				}
 			}
 			
-			tip->render(td, dest, STYLE_TOPLABEL);
+			tip->render(loot[i].tip, dest, STYLE_TOPLABEL);
 		}
 	}
 	
@@ -264,7 +289,7 @@ void LootManager::checkEnemiesForLoot() {
 void LootManager::checkMapForLoot() {
 	Point p;
 	Event_Component *ec;
-	ItemStack loot;
+	ItemStack new_loot;
 	
 	while (!map->loot.empty()) {
 		ec = &map->loot.front();
@@ -275,9 +300,9 @@ void LootManager::checkMapForLoot() {
 			determineLoot(ec->z, p);
 		}
 		else if (ec->s == "id") {
-			loot.item = ec->z;
-			loot.quantity = 1;
-			addLoot(loot, p);
+			new_loot.item = ec->z;
+			new_loot.quantity = 1;
+			addLoot(new_loot, p);
 		}
 		else if (ec->s == "currency") {
 			addGold(ec->z, p);
@@ -318,16 +343,16 @@ int LootManager::lootLevel(int base_level) {
  */
 void LootManager::determineLoot(int base_level, Point pos) {
 	int level = lootLevel(base_level);
-	ItemStack loot;
+	ItemStack new_loot;
 
 	if (level > 0 && loot_table_count[level] > 0) {
 	
 		// coin flip whether the treasure is cash or items
 		if (rand() % 2 == 0) {
 			int roll = rand() % loot_table_count[level];
-			loot.item = loot_table[level][roll];
-			loot.quantity = rand() % items->items[loot.item].rand_loot + 1;
-			addLoot( loot, pos);
+			new_loot.item = loot_table[level][roll];
+			new_loot.quantity = rand() % items->items[new_loot.item].rand_loot + 1;
+			addLoot(new_loot, pos);
 		}
 		else {
 			// gold range is level to 3x level
@@ -376,13 +401,28 @@ void LootManager::addGold(int count, Point pos) {
  * Remove one loot from the array, preserving sort order
  */
 void LootManager::removeLoot(int index) {
+
+	// deallocate the tooltip of the loot being removed
+	tip->clear(loot[index].tip);
+
 	for (int i=index; i<loot_count-1; i++) {
 		loot[i].stack = loot[i+1].stack;
 		loot[i].pos.x = loot[i+1].pos.x;
 		loot[i].pos.y = loot[i+1].pos.y;
 		loot[i].frame = loot[i+1].frame;
 		loot[i].gold = loot[i+1].gold;
+		loot[i].tip = loot[i+1].tip;
 	}
+		
+	// the last tooltip buffer pointer has been copied up one index.
+	// NULL the last pointer without deallocating. Otherwise the same
+	// address might be deallocated twice, causing a memory access error
+	loot[loot_count-1].tip.tip_buffer = NULL;
+	
+	// TODO: This requires too much knowledge of the underworkings of
+	// TooltipData. Is there a way to hide this complexity, be memory safe,
+	// and be efficient with the drawing buffer?
+
 	loot_count--;
 }
 
@@ -476,6 +516,7 @@ Renderable LootManager::getRender(int index) {
 }
 
 LootManager::~LootManager() {
+
 	for (int i=0; i<64; i++)
 		if (flying_loot[i])
 			SDL_FreeSurface(flying_loot[i]);
@@ -483,4 +524,11 @@ LootManager::~LootManager() {
 		if (flying_gold[i])
 			SDL_FreeSurface(flying_gold[i]);
 	if (loot_flip) Mix_FreeChunk(loot_flip);
+
+	// clear loot tooltips to free buffer memory
+	for (int i=0; i<loot_count; i++) {
+		tip->clear(loot[i].tip);
+	}
+	
+	delete tip;
 }

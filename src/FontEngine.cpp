@@ -1,85 +1,85 @@
 /*
+Copyright 2011 Clint Bellanger and Thane Brimhall
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
+/*
  * class FontEngine
- * Handles rendering a bitmap font
- *
- * @author Clint Bellanger
- * @license GPL
- *
  */
 
 #include "FontEngine.h"
-
+#include "FileParser.h"
+#include "SharedResources.h"
+#include <iostream>
+#include <sstream>
 
 FontEngine::FontEngine() {
+	font_pt = 10;
 
-	for (int i=0; i<256; i++) {
-		width[i] = 0;
+	// Initiate SDL_ttf
+	if(!TTF_WasInit() && TTF_Init()==-1) {
+		printf("TTF_Init: %s\n", TTF_GetError());
+		exit(2);
 	}
-	load();
-}
 
-
-
-void FontEngine::load() {
-
-	string imgfile;
-	string line;
-	ifstream infile;
-	char str[8];
-	
-	// load the definition file
-	infile.open((PATH_DATA + "fonts/font.txt").c_str(), ios::in);
-
-	if (infile.is_open()) {
-			
-		line = getLine(infile);
-		font_width = atoi(line.c_str());
-		
-		line = getLine(infile);
-				
-		font_height = atoi(line.c_str());
-		src.h = font_height;
-		dest.h = font_height;
-		
-		line = getLine(infile);
-				
-		line_height = atoi(line.c_str());
-		
-		line = getLine(infile);
-			
-		kerning = atoi(line.c_str());
-		
-		// the rest of the file is character pixel widths
-		while (!infile.eof()) {
-			line = getLine(infile);
-			
-			if (line.length() > 0) {
-				strcpy(str, line.c_str());
-				width[(int)str[0]] = line.c_str()[2] - 48;
-				
+	// load the font
+	string font_path;
+	FileParser infile;
+	if (infile.open(mods->locate("engine/font_settings.txt"))) {
+		while (infile.next()) {
+			if (infile.key == "font_regular"){
+				font_path = infile.val;
+			}
+			if (infile.key == "ptsize"){
+				font_pt = atoi(infile.val.c_str());
 			}
 		}
 	}
-	infile.close();
-	
-	// load the font images
-	sprites[FONT_WHITE] = IMG_Load((PATH_DATA + "fonts/white.png").c_str());
-	sprites[FONT_RED] = IMG_Load((PATH_DATA + "fonts/red.png").c_str());
-	sprites[FONT_GREEN] = IMG_Load((PATH_DATA + "fonts/green.png").c_str());
-	sprites[FONT_BLUE] = IMG_Load((PATH_DATA + "fonts/blue.png").c_str());
-	sprites[FONT_GRAY] = IMG_Load((PATH_DATA + "fonts/gray.png").c_str());
-	
+	font_path = mods->locate("fonts/" + font_path);
+	ttfont = TTF_OpenFont(font_path.c_str(), font_pt);
+	if(!ttfont) printf("TTF_OpenFont: %s\n", TTF_GetError());
+
+	// calculate the optimal line height
+	line_height = TTF_FontLineSkip(ttfont);
+	font_height = TTF_FontHeight(ttfont); 
+
+	// set the font colors
+	// RGB values, the last value is 'unused'. For info,
+	// see http://www.libsdl.org/cgi/docwiki.cgi/SDL_Color
+	SDL_Color white = {255,255,255,0};
+	SDL_Color red = {255,0,0,0};
+	SDL_Color green = {0,255,0,0};
+	SDL_Color blue = {0,0,255,0};
+	SDL_Color grey = {128,128,128,0};
+	SDL_Color black = {0,0,0,0};
+
+	colors[FONT_WHITE] = white;
+	colors[FONT_RED] = red;
+	colors[FONT_GREEN] = green;
+	colors[FONT_BLUE] = blue;
+	colors[FONT_GREY] = grey;
+	colors[FONT_BLACK] = black;
 }
 
-int FontEngine::calc_length(string text) {
-	int size=0;
-	char c;
-	for (unsigned int i=0; i<text.length(); i++) {
-		c = text.c_str()[i];
-		size = size + width[(int)c] + kerning;
-	}
-	size = size - kerning;
-	return size;
+/**
+ * For single-line text, just calculate the width
+ */
+int FontEngine::calc_width(string text) {
+	int w, h;
+	TTF_SizeUTF8(ttfont, text.c_str(), &w, &h);
+	return w;
 }
 
 /**
@@ -91,8 +91,8 @@ Point FontEngine::calc_size(string text_with_newlines, int width) {
 	string text = text_with_newlines;
 
 	// if this contains newlines, recurse
-	int check_newline = text.find_first_of(newline);
-	if (check_newline > -1) {
+	size_t check_newline = text.find_first_of(newline);
+	if (check_newline != string::npos) {
 		Point p1 = calc_size(text.substr(0, check_newline), width);
 		Point p2 = calc_size(text.substr(check_newline+1, text.length()), width);
 		Point p3;
@@ -107,133 +107,154 @@ Point FontEngine::calc_size(string text_with_newlines, int width) {
 	int height = 0;
 	int max_width = 0;
 
-	string segment;
-	string fulltext;
-	string builder = "";
-	string builder_prev = "";
+	string next_word;
+	stringstream builder;
+	stringstream builder_prev;
 	char space = 32;
+	size_t cursor = 0;
+	string fulltext = text + " ";
 	
-	fulltext = text + " ";
-	segment = eatFirstString(fulltext, space);
+	builder.str("");
+	builder_prev.str("");
 	
-	while(segment != "" || fulltext.length() > 0) { // don't exit early on double spaces
-		builder = builder + segment;
+	next_word = getNextToken(fulltext, cursor, space);
+	
+	while(cursor != string::npos) {
+		builder << next_word;
 		
-		if (calc_length(builder) > width) {
-			height = height + line_height;
-			if (calc_length(builder_prev) > max_width) max_width = calc_length(builder_prev);
-			builder_prev = "";
-			builder = segment + " ";
+		if (calc_width(builder.str()) > width) {
+		
+			// this word can't fit on this line, so word wrap
+			height = height + getLineHeight();
+			if (calc_width(builder_prev.str()) > max_width) {
+				max_width = calc_width(builder_prev.str());
+			}
+			
+			builder_prev.str("");
+			builder.str("");
+			
+			builder << next_word << " ";			
 		}
 		else {
-			builder = builder + " ";
-			builder_prev = builder;
+			builder <<  " ";
+			builder_prev.str(builder.str());
 		}
 		
-		segment = eatFirstString(fulltext, space);
+		next_word = getNextToken(fulltext, cursor, space); // get next word
 	}
 	
-	height = height + line_height;
-	if (calc_length(builder) > max_width) max_width = calc_length(builder);
-				
+	height = height + getLineHeight();
+	builder.str(trim(builder.str(), ' ')); //removes whitespace that shouldn't be included in the size
+	if (calc_width(builder.str()) > max_width) max_width = calc_width(builder.str());
+		
 	Point size;
-	size.x = max_width - this->width[32] - kerning; // remove the extra blankspace at the end
+	size.x = max_width;
 	size.y = height;
 	return size;
-
 }
+
 
 /**
  * Render the given text at (x,y) on the target image.
  * Justify is left, right, or center
  */
 void FontEngine::render(string text, int x, int y, int justify, SDL_Surface *target, int color) {
+	int dest_x = -1;
+	int dest_y = -1;
 
-	unsigned char c;
-	char str[256];
-	int dest_x;
-	int dest_y;
+	// DEBUG
+	dest_x = x;
+	dest_y = y;
 	
-	strcpy(str, text.c_str());
-
 	// calculate actual starting x,y based on justify
 	if (justify == JUSTIFY_LEFT) {
 		dest_x = x;
 		dest_y = y;
 	}
 	else if (justify == JUSTIFY_RIGHT) {
-		dest_x = x - calc_length(text);
+		dest_x = x - calc_width(text);
 		dest_y = y;
 	}
 	else if (justify == JUSTIFY_CENTER) {
-		dest_x = x - calc_length(text)/2;
+		dest_x = x - calc_width(text)/2;
+		dest_y = y;
+	}
+	else {
+		printf("ERROR: FontEngine::render() given unhandled 'justify=%d', assuming left\n",
+		       justify);
+		dest_x = x;
 		dest_y = y;
 	}
 
-	for (unsigned int i=0; i<text.length(); i++) {
+	// render and blit the text
+	SDL_Rect dest_rect;
+	dest_rect.x = dest_x;
+	dest_rect.y = dest_y;
 	
-		// Note, SDL_BlitSurface rewrites dest to show clipping.
-		// So we have to remember dest locally.  - cpb 2010/07/03
-		dest.x = dest_x;
-		dest.y = dest_y;
-	
-		// set the bounding rect of the char to render
-		c = str[i];
-		if (c >= 32 && c <= 127) {
-			src.x = ((c-32) % 16) * font_width;
-			src.y = ((c-32) / 16) * font_height;
-			src.w = width[c];
-		
-			// draw the font
-			SDL_BlitSurface(sprites[color], &src, target, &dest);
-		
-			// move dest
-			dest_x = dest_x + width[c] + kerning;
-		}
-	}
+	ttf = TTF_RenderUTF8_Solid(ttfont, text.c_str(), colors[color]);
+
+	if (ttf != NULL) SDL_BlitSurface(ttf, NULL, target, &dest_rect);
+	SDL_FreeSurface(ttf);
+	ttf = NULL;
 }
 
 /**
  * Word wrap to width
  */
 void FontEngine::render(string text, int x, int y, int justify, SDL_Surface *target, int width, int color) {
-	
+
+	string fulltext = text + " ";
 	cursor_y = y;
-	string segment;
-	string fulltext;
-	string builder = "";
-	string builder_prev = "";
+	string next_word;
+	stringstream builder;
+	stringstream builder_prev;
 	char space = 32;
+	size_t cursor = 0;
+	string swap;
 	
-	fulltext = text + " ";
-	segment = eatFirstString(fulltext, space);
+	builder.str("");
+	builder_prev.str("");
 	
+	next_word = getNextToken(fulltext, cursor, space);
 	
-	while(segment != "" || fulltext.length() > 0) { // don't exit early on double spaces
-		builder = builder + segment;
+	while(cursor != string::npos) {
+	
+		builder << next_word;
 		
-		if (calc_length(builder) > width) {
-			render(builder_prev, x, cursor_y, justify, target, color);
-			cursor_y += line_height;
-			builder_prev = "";
-			builder = segment + " ";
+		if (calc_width(builder.str()) > width) {
+			render(builder_prev.str(), x, cursor_y, justify, target, color);
+			cursor_y += getLineHeight();
+			builder_prev.str("");
+			builder.str("");
+			
+			builder << next_word << " ";
 		}
 		else {
-			builder = builder + " ";
-			builder_prev = builder;
+			builder << " ";
+			builder_prev.str(builder.str());
 		}
 		
-		segment = eatFirstString(fulltext, space);
+		next_word = getNextToken(fulltext, cursor, space); // next word
 	}
 
-	render(builder, x, cursor_y, justify, target, color);
-	cursor_y += line_height;
+	render(builder.str(), x, cursor_y, justify, target, color);
+	cursor_y += getLineHeight();
 
 }
 
+void FontEngine::renderShadowed(string text, int x, int y, int justify, SDL_Surface *target, int color) {
+	render(text, x+1, y+1, justify, target, FONT_BLACK);
+	render(text, x, y, justify, target, color);
+}
+
+void FontEngine::renderShadowed(string text, int x, int y, int justify, SDL_Surface *target, int width, int color) {
+	render(text, x+1, y+1, justify, target, width, FONT_BLACK);
+	render(text, x, y, justify, target, width, color);
+}
 
 FontEngine::~FontEngine() {
-	for (int i=0; i<5; i++)
-		SDL_FreeSurface(sprites[i]);
+	SDL_FreeSurface(ttf);
+	TTF_CloseFont(ttfont);
+	TTF_Quit();
 }
 

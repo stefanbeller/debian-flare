@@ -1,10 +1,24 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class StatBlock
  *
  * Character stats and calculations
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #ifndef STAT_BLOCK_H
@@ -14,18 +28,21 @@
 #include <fstream>
 #include "Settings.h"
 #include "Utils.h"
+#include "SharedResources.h"
 
 using namespace std;
 
 const int STAT_EFFECT_SHIELD = 0;
 const int STAT_EFFECT_VENGEANCE = 1;
 
-const int POWERSLOT_COUNT = 4;
+const int POWERSLOT_COUNT = 5;
 const int MELEE_PHYS = 0;
 const int MELEE_MENT = 1;
 const int RANGED_PHYS = 2;
 const int RANGED_MENT = 3;
+const int BEACON = 4;
 
+const int MAX_CHARACTER_LEVEL = 32;
 
 class StatBlock {
 private:
@@ -33,7 +50,7 @@ private:
 public:
 	StatBlock();
 	~StatBlock();
-	
+
 	void load(string filename);
 	void takeDamage(int dmg);
 	void recalc();
@@ -44,7 +61,6 @@ public:
 	bool alive;
 	bool corpse; // creature is dead and done animating
 	bool hero; // else, enemy or other
-	int targeted; // after being subject to an attack, cannot be hit by an attack for a short time
 	
 	string name;
 	string sfx_prefix;
@@ -52,7 +68,7 @@ public:
 	
 	int level;
 	int xp;
-	int xp_table[18];
+	int xp_table[MAX_CHARACTER_LEVEL+1];
 
 	// base stats ("attributes")
 	int offense_character;

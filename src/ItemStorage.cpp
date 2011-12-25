@@ -1,13 +1,27 @@
+/*
+Copyright 2011 Clint Bellanger
+
+This file is part of FLARE.
+
+FLARE is free software: you can redistribute it and/or modify it under the terms
+of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version.
+
+FLARE is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+FLARE.  If not, see http://www.gnu.org/licenses/
+*/
+
 /**
  * class ItemStorage
- *
- * @author Clint Bellanger
- * @license GPL
  */
 
 #include "ItemStorage.h"
 
-void ItemStorage::init(int _slot_number, ItemDatabase *_items) {
+void ItemStorage::init(int _slot_number, ItemManager *_items) {
 	slot_number = _slot_number;
 	items = _items;
 
@@ -176,13 +190,13 @@ bool ItemStorage::full() {
  * Get the number of the specified item carried (not equipped)
  */
 int ItemStorage::count(int item) {
-	int count=0;
+	int item_count=0;
 	for (int i=0; i<slot_number; i++) {
 		if (storage[i].item == item) {
-			count += storage[i].quantity;
+			item_count += storage[i].quantity;
 		}
 	}
-	return count;
+	return item_count;
 }
 
 /**
