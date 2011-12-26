@@ -1,3 +1,12 @@
+flare (0.15-1) unstable; urgency=low
+
+  [ Jan-Hendrik Peters <hennr@hennr.name> ]
+  * added new build dependency: libsdl-ttf2.0-dev
+  * New upstream release
+
+ -- Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>  Tue, 25 Dec 2011 22:12:48 +0000
+
+
 flare (0.14.1-5) unstable; urgency=low
 
   [ Jan-Hendrik Peters <hennr@hennr.name> ]

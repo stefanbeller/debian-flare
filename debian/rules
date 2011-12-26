@@ -7,7 +7,7 @@
 %:
 #	mafm 20111021 -- 'dh --sourcedirectory' because CMakeLists.txt
 #	is in there
-	dh $@ --buildsystem=cmake --parallel --builddirectory=build --sourcedirectory=build
+	dh $@ --buildsystem=cmake --parallel --builddirectory=build
 
 
 # mafm 20111021 -- unnecessary with 'dh --sourcedirectory', unless
@@ -45,7 +45,7 @@
 
 override_dh_fixperms:
 	dh_fixperms
-# #	wrong upstream repo perms set, already reported and fixed in 0.15
+# #	wrong upstream repo permissions set?
 # 	chmod -v a-x $(shell find debian -executable -name \*.png)
 
 #	used for "debugging", so it prints the location of the
