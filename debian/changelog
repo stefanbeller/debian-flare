@@ -1,16 +1,26 @@
 flare (0.15.1-1) unstable; urgency=low
 
-  * [76cb190] Imported Upstream version 0.15.1
-
- -- Jan-Hendrik Peters <hennr@hennr.name>  Mon, 26 Dec 2011 13:46:26 +0100
-
-flare (0.15-1) unstable; urgency=low
-
   [ Jan-Hendrik Peters <hennr@hennr.name> ]
-  * added new build dependency: libsdl-ttf2.0-dev
-  * New upstream release
+  * New upstream release (Closes: #646455)
+    - Imported Upstream version 0.15.1 [76cb190]
+  * Added new build dependency: libsdl-ttf2.0-dev
 
- -- Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>  Tue, 25 Dec 2011 22:12:48 +0000
+  [ Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com> ]
+  * Remove stuff in debian/ now present upstream:
+    - flare.desktop (now in distribution/flare.desktop.in)
+    - flare-icon.png (installed by CMake from art_src/logo/flare_logo.svg), and
+      debian/source/include-binaries (created because of this icon)
+  * debian/rules:
+    - No need for "override_dh_fixperms" with this upstream
+    - Now it doesn't contain the master CMakeLists.txt on build, so no need for
+      overrides to "dh_auto_configure", "dh_auto_build" or "dh_auto_clean"
+      (already commented out); nor "--builddirectory=build" to the base "dh"
+      template.
+  * debian/copyright: minor updates, e.g. changes to dir names and clarifying
+    that files are under GPLv3/CC-BY-SAv3 or later (not just 3.0)
+  * Update package descriptions (text taken from upstream's README)
+
+ -- Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>  Mon, 26 Dec 2011 18:12:48 +0000
 
 
 flare (0.14.1-5) unstable; urgency=low
