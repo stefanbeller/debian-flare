@@ -16,12 +16,13 @@ flare (0.15.1-1) unstable; urgency=low
       overrides to "dh_auto_configure", "dh_auto_build" or "dh_auto_clean"
       (already commented out); nor "--builddirectory=build" to the base "dh"
       template.
+    - "override_dh_install" to include --fail-missing (to avoid not installing
+      new files by mistake, in this package with the data changing so often)
   * debian/copyright: minor updates, e.g. changes to dir names and clarifying
     that files are under GPLv3/CC-BY-SAv3 or later (not just 3.0)
   * Update package descriptions (text taken from upstream's README)
 
- -- Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>  Mon, 26 Dec 2011 18:12:48 +0000
-
+ -- Manuel A. Fernandez Montecelo <manuel.montezelo@gmail.com>  Mon, 26 Dec 2011 22:12:48 +0000
 
 flare (0.14.1-5) unstable; urgency=low
 

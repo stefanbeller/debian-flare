@@ -8,6 +8,10 @@
 	dh $@ --buildsystem=cmake --parallel
 
 
+override_dh_install:
+	dh_install --fail-missing
+
+
 # mafm 20111021 -- man page can be regenerated from time to time, no
 # need for this override dh_installman and use xsltproc every time
 # (and so we save a few build-depends as well, XML is not used for
