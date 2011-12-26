@@ -5,24 +5,7 @@
 #export DH_VERBOSE=1
 
 %:
-#	mafm 20111021 -- 'dh --sourcedirectory' because CMakeLists.txt
-#	is in there
-	dh $@ --buildsystem=cmake --parallel --builddirectory=build
-
-
-# mafm 20111021 -- unnecessary with 'dh --sourcedirectory', unless
-# buildd machines need them
-
-# override_dh_auto_configure:
-# 	cd build && cmake .
-#
-# override_dh_auto_build:
-# 	cd build && make
-#
-# override_dh_auto_clean:
-# 	rm -rf build/CMakeFiles/ build/CMakeCache.txt build/cmake_install.cmake build/Makefile
-# 	rm -f flare
-# 	dh_auto_clean
+	dh $@ --buildsystem=cmake --parallel
 
 
 # mafm 20111021 -- man page can be regenerated from time to time, no
@@ -39,15 +22,3 @@
 # 		http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl \
 # 		debian/flare.1.xml
 # 	dh_installman
-
-# mafm 20111022 -- breaks on buildd machines, disabling chmod at the
-# moment -- better a lintian warning that not building at all...
-
-override_dh_fixperms:
-	dh_fixperms
-# #	wrong upstream repo permissions set?
-# 	chmod -v a-x $(shell find debian -executable -name \*.png)
-
-#	used for "debugging", so it prints the location of the
-#	"offending" files in the build log
-	find -executable -name \*.png
