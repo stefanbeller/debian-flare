@@ -12,26 +12,26 @@ holds the releases of flare
 * pristine-tar
 pristine-tar is used to be able to rebuild an orig.tar.gz from the upstream branch. Thus I don't have to keep all upstream tarballs here
 * readme_first
-is basically here for the README file you are just reading :)
+only exists for the README file you are just reading :)
 
 If you want to build a flare package on your own, follow these steps:
 
 <pre>
 # clone the repo
-git clone git@github.com:hennr/debian-flare.git
+git clone git://github.com/hennr/debian-flare.git
 
 # ...
 cd debian-flare
 
-# make git follow the repo's branches locally
+# make git follow the relevant remote branches locally
 git checkout -b master origin/master
 git checkout -b upstream origin/upstream
 git checkout -b pristine-tar  origin/pristine-tar
 
-# move to master repo and build it!
+# checkout the master branch...
 git checkout master
 
-# build the package with the tool you prefer
+# ... and build the package with the tool of your choice
 git-buildpackage
 dpkg-buildpackage
 ...
@@ -47,7 +47,7 @@ Forums    http://opengameart.org/forums/projects/flare
 
 A thanks goes out to Matthias Schmitz for helping me with my first Debian package.  
 Another thanks goes to Loic Dachary for sponsoring this package (aka uploading it to Debian)  
-and to Manuel A. Fernandez Montecelo for helping and uploading this package again and again :)
+and to Manuel A. Fernandez Montecelo for helping and uploading this package again and again and ... :)
 
 ## Support
 
