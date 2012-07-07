@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -24,6 +24,9 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include "WidgetLabel.h"
 #include "SharedResources.h"
 
+using namespace std;
+
+
 WidgetLabel::WidgetLabel() {
 	
 	text_buffer = NULL;
@@ -40,7 +43,10 @@ WidgetLabel::WidgetLabel() {
 /**
  * Draw the buffered string surface to the screen
  */
-void WidgetLabel::render() {
+void WidgetLabel::render(SDL_Surface *target) {
+	if (target == NULL) {
+		target = screen;
+	}
 
 	SDL_Rect dest;
 	dest.x = bounds.x;
@@ -49,7 +55,7 @@ void WidgetLabel::render() {
 	dest.h = bounds.h;
 
 	if (text_buffer != NULL) {
-		SDL_BlitSurface(text_buffer, NULL, screen, &dest);		
+		SDL_BlitSurface(text_buffer, NULL, target, &dest);
 	}
 }
 
@@ -57,7 +63,7 @@ void WidgetLabel::render() {
 /**
  * A shortcut function to set all attributes simultaneously.
  */
-void WidgetLabel::set(int _x, int _y, int _justify, int _valign, string _text, int _color) {
+void WidgetLabel::set(int _x, int _y, int _justify, int _valign, const string& _text, int _color) {
 
 	bool changed = false;
 
@@ -87,6 +93,75 @@ void WidgetLabel::set(int _x, int _y, int _justify, int _valign, string _text, i
 	}
 	
 	if (changed) {
+		applyOffsets();
+		refresh();
+	}
+}
+
+/**
+ * Set initial X position of label.
+ */
+void WidgetLabel::setX(int _x) {
+	if (x_origin != _x) {
+		x_origin = _x;
+		applyOffsets();
+		refresh();
+	}
+}
+
+/**
+ * Set initial Y position of label.
+ */
+void WidgetLabel::setY(int _y) {
+	if (y_origin != _y) {
+		y_origin = _y;
+		applyOffsets();
+		refresh();
+	}
+}
+
+/**
+ * Get X position of label.
+ */
+int WidgetLabel::getX() {
+	return x_origin;
+}
+
+/**
+ * Get Y position of label.
+ */
+int WidgetLabel::getY() {
+	return y_origin;
+}
+
+/**
+ * Set justify value.
+ */
+void WidgetLabel::setJustify(int _justify) {
+	if (justify != _justify) {
+		justify = _justify;
+		applyOffsets();
+		refresh();
+	}
+}
+
+/**
+ * Set valign value.
+ */
+void WidgetLabel::setValign(int _valign) {
+	if (valign != _valign) {
+		valign = _valign;
+		applyOffsets();
+		refresh();
+	}
+}
+
+/**
+ * Set text color.
+ */
+void WidgetLabel::setColor(int _color) {
+	if (color != _color) {
+		color = _color;
 		applyOffsets();
 		refresh();
 	}
@@ -124,7 +199,7 @@ void WidgetLabel::applyOffsets() {
 /**
  * Update the label text only
  */
-void WidgetLabel::set(string _text) {
+void WidgetLabel::set(const string& _text) {
 	if (text != _text) {
 		this->text = _text;
 		applyOffsets();

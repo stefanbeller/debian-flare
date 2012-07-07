@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,7 +22,6 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include "WidgetButton.h"
 #include <SDL_image.h>
 
-
 class MenuConfirm : public Menu {
 protected:
 	void loadGraphics();
@@ -31,9 +30,10 @@ protected:
 	WidgetButton *buttonClose;
 	WidgetLabel label;
 
-	string boxMsg;
+	std::string boxMsg;
+	bool hasConfirmButton;
 public:
-	MenuConfirm(string, string);
+	MenuConfirm(const std::string&, const std::string&);
 	~MenuConfirm();
 
 	void logic();

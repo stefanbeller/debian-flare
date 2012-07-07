@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright � 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -20,37 +20,39 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  *
  * Handles floor loot
  */
- 
+
+#include "EnemyManager.h"
 #include "LootManager.h"
 #include "SharedResources.h"
- 
-LootManager::LootManager(ItemManager *_items, EnemyManager *_enemies, MapIso *_map) {
+
+#include <sstream>
+
+using namespace std;
+
+
+LootManager::LootManager(ItemManager *_items, EnemyManager *_enemies, MapIso *_map, StatBlock *_hero) {
 	items = _items;
 	enemies = _enemies; // we need to be able to read loot state when creatures die
 	map = _map; // we need to be able to read loot that drops from map containers
+	hero = _hero; // we need the player's position for dropping loot in a valid spot
 
 	tip = new WidgetTooltip();
-	
+
 	tooltip_margin = 32; // pixels between loot drop center and label
-	
+
 	loot_count = 0;
 	animation_count = 0;
-	
+
 	for (int i=0; i<64; i++) {
 		flying_loot[i] = NULL;
 		animation_id[i] = "";
 	}
-	
+
 	loot_flip = NULL;
-	
+
 	// reset current map loot
 	for (int i=0; i<256; i++) {
-		loot[i].pos.x = 0;
-		loot[i].pos.y = 0;
-		loot[i].frame = 0;
-		loot[i].stack.item = 0;
-		loot[i].stack.quantity = 0;
-		loot[i].gold = 0;
+		loot[i].clear();
 	}
 
 	// reset loot table
@@ -60,15 +62,16 @@ LootManager::LootManager(ItemManager *_items, EnemyManager *_enemies, MapIso *_m
 			loot_table[lvl][num] = 0;
 		}
 	}
-	
+
 	loadGraphics();
 	calcTables();
-	loot_flip = Mix_LoadWAV(mods->locate("soundfx/flying_loot.ogg").c_str());
+	if (audio == true)
+		loot_flip = Mix_LoadWAV(mods->locate("soundfx/flying_loot.ogg").c_str());
 	full_msg = false;
-	
+
 	anim_loot_frames = 6;
 	anim_loot_duration = 3;
-	
+
 }
 
 /**
@@ -83,19 +86,19 @@ void LootManager::loadGraphics() {
 	// check all items in the item database
 	for (int i=0; i<MAX_ITEM_ID; i++) {
 		anim_id = items->items[i].loot;
-		
+
 		new_anim = true;
-		
+
 		if (anim_id != "") {
-			
+
 			// do we have this animation loaded already?
 			for (int j=0; j<animation_count; j++) {
 				if (anim_id == animation_id[j]) new_anim = false;
 			}
-			
+
 			if (new_anim) {
 				flying_loot[animation_count] = IMG_Load(mods->locate("images/loot/" + anim_id + ".png").c_str());
-				
+
 				if (flying_loot[animation_count]) {
 					animation_id[animation_count] = anim_id;
 					animation_count++;
@@ -103,24 +106,24 @@ void LootManager::loadGraphics() {
 			}
 		}
 	}
-	
+
 	// gold
 	flying_gold[0] = IMG_Load(mods->locate("images/loot/coins5.png").c_str());
 	flying_gold[1] = IMG_Load(mods->locate("images/loot/coins25.png").c_str());
 	flying_gold[2] = IMG_Load(mods->locate("images/loot/coins100.png").c_str());
-	
+
 	// set magic pink transparency
 	for (int i=0; i<animation_count; i++) {
-		SDL_SetColorKey( flying_loot[i], SDL_SRCCOLORKEY, SDL_MapRGB(flying_loot[i]->format, 255, 0, 255) ); 
-		
+		SDL_SetColorKey( flying_loot[i], SDL_SRCCOLORKEY, SDL_MapRGB(flying_loot[i]->format, 255, 0, 255) );
+
 		// optimize
 		SDL_Surface *cleanup = flying_loot[i];
 		flying_loot[i] = SDL_DisplayFormatAlpha(flying_loot[i]);
 		SDL_FreeSurface(cleanup);
 	}
 	for (int i=0; i<3; i++) {
-		SDL_SetColorKey( flying_gold[i], SDL_SRCCOLORKEY, SDL_MapRGB(flying_gold[i]->format, 255, 0, 255) ); 
-		
+		SDL_SetColorKey( flying_gold[i], SDL_SRCCOLORKEY, SDL_MapRGB(flying_gold[i]->format, 255, 0, 255) );
+
 		// optimize
 		SDL_Surface *cleanup = flying_gold[i];
 		flying_gold[i] = SDL_DisplayFormatAlpha(flying_gold[i]);
@@ -137,7 +140,7 @@ void LootManager::loadGraphics() {
 void LootManager::calcTables() {
 
 	int level;
-	
+
 	for (int i=0; i<1024; i++) {
 		level = items->items[i].level;
 		if (level > 0) {
@@ -171,16 +174,16 @@ void LootManager::calcTables() {
 
 void LootManager::handleNewMap() {
 	for (int i=0; i<loot_count; i++) {
-		tip->clear(loot[i].tip);
+		loot[i].clear();
 	}
 	loot_count = 0;
 }
 
 void LootManager::logic() {
 	int max_frame = anim_loot_frames * anim_loot_duration - 1;
-	
+
 	for (int i=0; i<loot_count; i++) {
-	
+
 		// animate flying loot
 		if (loot[i].frame < max_frame)
 			loot[i].frame++;
@@ -192,7 +195,7 @@ void LootManager::logic() {
 				items->playCoinsSound();
 		}
 	}
-	
+
 	checkEnemiesForLoot();
 	checkMapForLoot();
 }
@@ -211,26 +214,17 @@ bool LootManager::isFlying(int loot_index) {
  * Show all tooltips for loot on the floor
  */
 void LootManager::renderTooltips(Point cam) {
-
-	Point xcam;
-	Point ycam;
-	xcam.x = cam.x/UNITS_PER_PIXEL_X;
-	xcam.y = cam.y/UNITS_PER_PIXEL_X;
-	ycam.x = cam.x/UNITS_PER_PIXEL_Y;
-	ycam.y = cam.y/UNITS_PER_PIXEL_Y;
-	
 	Point dest;
 	stringstream ss;
-	
+
 	int max_frame = anim_loot_frames * anim_loot_duration - 1;
-	
-	for (int i = 0; i < loot_count; i++) {			
+
+	for (int i = 0; i < loot_count; i++) {
 		if (loot[i].frame == max_frame) {
-		
-		
-			dest.x = VIEW_W_HALF + (loot[i].pos.x/UNITS_PER_PIXEL_X - xcam.x) - (loot[i].pos.y/UNITS_PER_PIXEL_X - xcam.y);
-			dest.y = VIEW_H_HALF + (loot[i].pos.x/UNITS_PER_PIXEL_Y - ycam.x) + (loot[i].pos.y/UNITS_PER_PIXEL_Y - ycam.y) + (TILE_H/2);
-		
+			Point p = map_to_screen(loot[i].pos.x, loot[i].pos.y, cam.x, cam.y);
+			dest.x = p.x;
+			dest.y = p.y + TILE_H_HALF;
+			
 			// adjust dest.y so that the tooltip floats above the item
 			dest.y -= tooltip_margin;
 
@@ -248,11 +242,11 @@ void LootManager::renderTooltips(Point cam) {
 					ss.str("");
 				}
 			}
-			
+
 			tip->render(loot[i].tip, dest, STYLE_TOPLABEL);
 		}
 	}
-	
+
 
 }
 
@@ -263,20 +257,23 @@ void LootManager::renderTooltips(Point cam) {
 void LootManager::checkEnemiesForLoot() {
 	ItemStack istack;
 	istack.quantity = 1;
-	
+
 	for (int i=0; i<enemies->enemy_count; i++) {
 		if (enemies->enemies[i]->loot_drop) {
-			
-			if (enemies->enemies[i]->stats.quest_loot_id != 0) {				
+
+			if (enemies->enemies[i]->stats.quest_loot_id != 0) {
 				// quest loot
 				istack.item = enemies->enemies[i]->stats.quest_loot_id;
 				addLoot(istack, enemies->enemies[i]->stats.pos);
 			}
 			else {
 				// random loot
-				determineLoot(enemies->enemies[i]->stats.level, enemies->enemies[i]->stats.pos);
+				if (map->collider.valid_position(enemies->enemies[i]->stats.pos.x, enemies->enemies[i]->stats.pos.y, MOVEMENT_NORMAL))
+					determineLoot(enemies->enemies[i]->stats.level, enemies->enemies[i]->stats.pos);
+				else
+					determineLoot(enemies->enemies[i]->stats.level, hero->pos);
 			}
-			
+
 			enemies->enemies[i]->loot_drop = false;
 		}
 	}
@@ -290,12 +287,12 @@ void LootManager::checkMapForLoot() {
 	Point p;
 	Event_Component *ec;
 	ItemStack new_loot;
-	
+
 	while (!map->loot.empty()) {
 		ec = &map->loot.front();
 		p.x = ec->x;
 		p.y = ec->y;
-		
+
 		if (ec->s == "random") {
 			determineLoot(ec->z, p);
 		}
@@ -319,7 +316,7 @@ int LootManager::lootLevel(int base_level) {
 
 	int x = rand() % 100;
 	int actual;
-	
+
 	// this loot bell curve is +/- 3 levels
 	// percents: 5,10,20,30,20,10,5
 	if (x <= 4) actual = base_level-3;
@@ -329,10 +326,10 @@ int LootManager::lootLevel(int base_level) {
 	else if (x <= 84) actual = base_level+1;
 	else if (x <= 94) actual = base_level+2;
 	else actual = base_level+3;
-	
+
 	if (actual < 1) actual = 0;
 	if (actual > 20) actual = base_level;
-	
+
 	return actual;
 }
 
@@ -346,7 +343,7 @@ void LootManager::determineLoot(int base_level, Point pos) {
 	ItemStack new_loot;
 
 	if (level > 0 && loot_table_count[level] > 0) {
-	
+
 		// coin flip whether the treasure is cash or items
 		if (rand() % 2 == 0) {
 			int roll = rand() % loot_table_count[level];
@@ -393,37 +390,24 @@ void LootManager::addGold(int count, Point pos) {
 	loot[loot_count].frame = 0;
 	loot[loot_count].gold = count;
 	loot_count++;
-	if (loot_flip) Mix_PlayChannel(-1, loot_flip, 0);	
+	if (loot_flip) Mix_PlayChannel(-1, loot_flip, 0);
 }
 
 
 /**
- * Remove one loot from the array, preserving sort order
+ * Remove one loot from the array
  */
 void LootManager::removeLoot(int index) {
 
-	// deallocate the tooltip of the loot being removed
-	tip->clear(loot[index].tip);
-
-	for (int i=index; i<loot_count-1; i++) {
-		loot[i].stack = loot[i+1].stack;
-		loot[i].pos.x = loot[i+1].pos.x;
-		loot[i].pos.y = loot[i+1].pos.y;
-		loot[i].frame = loot[i+1].frame;
-		loot[i].gold = loot[i+1].gold;
-		loot[i].tip = loot[i+1].tip;
-	}
-		
-	// the last tooltip buffer pointer has been copied up one index.
-	// NULL the last pointer without deallocating. Otherwise the same
-	// address might be deallocated twice, causing a memory access error
-	loot[loot_count-1].tip.tip_buffer = NULL;
-	
-	// TODO: This requires too much knowledge of the underworkings of
-	// TooltipData. Is there a way to hide this complexity, be memory safe,
-	// and be efficient with the drawing buffer?
-
 	loot_count--;
+
+	// copy the last loot into this position
+	// instead of bubbling each loot down
+	// so that only 1 tooltip buffer needs to be redrawn
+	loot[index] = loot[loot_count];
+	
+	// reset the last loot
+	loot[loot_count].clear();
 }
 
 /**
@@ -435,10 +419,10 @@ ItemStack LootManager::checkPickup(Point mouse, Point cam, Point hero_pos, int &
 	Point p;
 	SDL_Rect r;
 	ItemStack loot_stack;
-	gold = 0;	
+	gold = 0;
 	loot_stack.item = 0;
 	loot_stack.quantity = 0;
-	
+
 	// I'm starting at the end of the loot list so that more recently-dropped
 	// loot is picked up first.  If a player drops several loot in the same
 	// location, picking it back up will work like a stack.
@@ -448,16 +432,16 @@ ItemStack LootManager::checkPickup(Point mouse, Point cam, Point hero_pos, int &
 		if (abs(hero_pos.x - loot[i].pos.x) < LOOT_RANGE && abs(hero_pos.y - loot[i].pos.y) < LOOT_RANGE && !isFlying(i)) {
 
 			p = map_to_screen(loot[i].pos.x, loot[i].pos.y, cam.x, cam.y);
-				
+
 			r.w = 32;
 			r.h = 48;
 			r.x = p.x - 16;
 			r.y = p.y - 32;
-		
+
 			// clicked in pickup hotspot?
 			if (mouse.x > r.x && mouse.x < r.x+r.w &&
 				mouse.y > r.y && mouse.y < r.y+r.h) {
-				
+
 				if (loot[i].stack.item > 0 && !inv_full) {
 					loot_stack = loot[i].stack;
 					removeLoot(i);
@@ -478,12 +462,34 @@ ItemStack LootManager::checkPickup(Point mouse, Point cam, Point hero_pos, int &
 	return loot_stack;
 }
 
+/**
+ * Autopickup loot if enabled in the engine
+ * Currently, only gold is checked for autopickup
+ */
+ItemStack LootManager::checkAutoPickup(Point cam, Point hero_pos, int &gold, bool inv_full) {
+	ItemStack loot_stack;
+	gold = 0;
+	loot_stack.item = 0;
+	loot_stack.quantity = 0;
+
+	for (int i=loot_count-1; i>=0; i--) {
+		if (abs(hero_pos.x - loot[i].pos.x) < AUTOPICKUP_RANGE && abs(hero_pos.y - loot[i].pos.y) < AUTOPICKUP_RANGE && !isFlying(i)) {
+			if (loot[i].gold > 0 && AUTOPICKUP_GOLD) {
+				gold = loot[i].gold;
+				removeLoot(i);
+				return loot_stack;
+			}
+		}
+	}
+	return loot_stack;
+}
+
 Renderable LootManager::getRender(int index) {
-	
+
 	Renderable r;
 	r.map_pos.x = loot[index].pos.x;
 	r.map_pos.y = loot[index].pos.y;
-	
+
 	// Right now the animation settings (number of frames, speed, frame size)
 	// are hard coded.  At least move these to consts in the header.
 
@@ -508,11 +514,11 @@ Renderable LootManager::getRender(int index) {
 			r.sprite = flying_gold[0];
 		else if (loot[index].gold <= 25)
 			r.sprite = flying_gold[1];
-		else 
+		else
 			r.sprite = flying_gold[2];
 	}
 
-	return r;	
+	return r;
 }
 
 LootManager::~LootManager() {
@@ -527,8 +533,8 @@ LootManager::~LootManager() {
 
 	// clear loot tooltips to free buffer memory
 	for (int i=0; i<loot_count; i++) {
-		tip->clear(loot[i].tip);
+		loot[i].clear();
 	}
-	
+
 	delete tip;
 }

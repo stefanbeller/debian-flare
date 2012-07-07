@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -24,7 +24,8 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 
 #include <SDL.h>
 #include "Utils.h"
-#include "MapCollision.h"
+
+class MapCollision;
 
 class MenuMiniMap {
 private:
@@ -39,6 +40,7 @@ public:
 	~MenuMiniMap();
 
 	void render(MapCollision *collider, Point hero_pos, int map_w, int map_h);
+	void renderOrtho(MapCollision *collider, Point hero_pos, int map_w, int map_h);
 	void renderIso(MapCollision *collider, Point hero_pos, int map_w, int map_h);
 
 };

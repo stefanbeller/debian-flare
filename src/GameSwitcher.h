@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -14,6 +14,20 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 FLARE.  If not, see http://www.gnu.org/licenses/
 */
+ 
+#ifndef GAME_SWITCHER_H
+#define GAME_SWITCHER_H
+
+#include <SDL.h>
+#include <SDL_image.h>
+#include <SDL_mixer.h>
+
+const int GAME_STATE_TITLE = 0;
+const int GAME_STATE_PLAY = 1;
+const int GAME_STATE_LOAD = 2;
+const int GAME_STATE_NEW = 3;
+
+class GameState;
 
 /**
  * class GameSwitcher
@@ -27,23 +41,6 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  * - load game screen
  * - maybe full-video cutscenes
  */
- 
-#ifndef GAME_SWITCHER_H
-#define GAME_SWITCHER_H
-
-#include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_mixer.h>
-#include "Settings.h"
-#include "InputState.h"
-#include "FontEngine.h"
-
-const int GAME_STATE_TITLE = 0;
-const int GAME_STATE_PLAY = 1;
-const int GAME_STATE_LOAD = 2;
-const int GAME_STATE_NEW = 3;
-
-class GameState;
 
 class GameSwitcher {
 private:

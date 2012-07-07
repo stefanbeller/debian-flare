@@ -6,7 +6,11 @@ Set (VERSION "0.15")
 
 
 # Default definitions
+if (MSVC)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4099 /wd4244")
+else (MSVC)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused -Wshadow -Woverloaded-virtual")
+endif (MSVC)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g0")
 elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
@@ -20,8 +24,8 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "-pg")
 endif()
 
-set(BINDIR  "games"             CACHE STRING "where to install game binary")
-set(DATADIR "share/games/flare" CACHE STRING "where to install game data")
+set(BINDIR  "games"             CACHE STRING "Directory from CMAKE_INSTALL_PREFIX where game executable will be installed.")
+set(DATADIR "share/games/flare" CACHE STRING "Directory from CMAKE_INSTALL_PREFIX where game data files will be installed.")
 
 add_definitions(-DDATA_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${DATADIR}")
 
@@ -61,14 +65,19 @@ EndIf (NOT SDLTTF_FOUND)
 Set (FLARE_SOURCES 
 	./src/Entity.cpp
 	./src/Animation.cpp
+	./src/AStarNode.cpp
 	./src/Avatar.cpp
+	./src/BehaviorStandard.cpp
 	./src/CampaignManager.cpp
+	./src/CombatText.cpp
 	./src/Enemy.cpp
+	./src/EnemyBehavior.cpp
 	./src/EnemyGroupManager.cpp
 	./src/EnemyManager.cpp
 	./src/FileParser.cpp
 	./src/FontEngine.cpp
 	./src/GameState.cpp
+	./src/GameStateConfig.cpp
 	./src/GameStateTitle.cpp
 	./src/GameStateLoad.cpp
 	./src/GameStatePlay.cpp
@@ -112,11 +121,19 @@ Set (FLARE_SOURCES
 	./src/StatBlock.cpp
 	./src/TileSet.cpp
 	./src/Utils.cpp
+	./src/UtilsDebug.cpp
 	./src/UtilsFileSystem.cpp
 	./src/UtilsParsing.cpp
+	./src/WidgetCheckBox.cpp
+	./src/WidgetComboBox.cpp
 	./src/WidgetButton.cpp
 	./src/WidgetInput.cpp
-	./src/WidgetLabel.cpp
+ 	./src/WidgetLabel.cpp
+ 	./src/WidgetListBox.cpp
+    ./src/WidgetScrollBar.cpp
+    ./src/WidgetScrollBox.cpp
+	./src/WidgetSlider.cpp
+ 	./src/WidgetTabControl.cpp
 	./src/WidgetTooltip.cpp
 	./src/main.cpp
 )

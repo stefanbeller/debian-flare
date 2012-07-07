@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -25,21 +25,21 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef WIDGET_LABEL_H
 #define WIDGET_LABEL_H
 
+#include "Widget.h"
 #include <SDL.h>
-#include "FontEngine.h"
 #include <string>
 
 const int VALIGN_CENTER = 0;
 const int VALIGN_TOP = 1;
-const int VALIGN_BOTTOM = 2;
+const int VALIGN_BOTTOM = 1;
 
-class WidgetLabel {
+class WidgetLabel : public Widget {
 private:
 
 	void refresh();
 	void applyOffsets();
 
-	string text;
+	std::string text;
 	int color;
 	int x_origin;
 	int y_origin;
@@ -50,13 +50,20 @@ private:
 public:
 	WidgetLabel();
 	~WidgetLabel();
-	void render();
-	void set(int _x, int _y, int _justify, int _valign, string _text, int _color);
-	
-	void set(string _text);
-	string get() {return text;}
+	void render(SDL_Surface *target = NULL);
+	void set(int _x, int _y, int _justify, int _valign, const std::string& _text, int _color);
+	void setX(int _x);
+	void setY(int _y);
+	int getX();
+	int getY();
+	void setJustify(int _justify);
+	void setValign(int _valign);
+	void setColor(int _color);
 
-	SDL_Rect bounds;	
+	void set(const std::string& _text);
+	std::string get() {return text;}
+
+	SDL_Rect bounds;
 };
 
 #endif

@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -24,17 +24,13 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef MENU_EXPERIENCE_H
 #define MENU_EXPERIENCE_H
 
-#include "StatBlock.h"
 #include "Utils.h"
-#include "FontEngine.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
 
-#include <string>
+class StatBlock;
 
-
-using namespace std;
 
 class MenuExperience {
 private:
@@ -59,7 +55,6 @@ public:
 	Point bar_size;
 	Point text_offset;
 	int text_justify;
-	
 };
 
 #endif

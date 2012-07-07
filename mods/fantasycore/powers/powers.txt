@@ -295,6 +295,8 @@ frame_loop=0
 floor=true
 starting_pos=source
 buff_teleport=true
+range=512
+target_neighbor=1
 
 [power]
 id=16
@@ -351,6 +353,7 @@ starting_pos=target
 multitarget=true
 post_effect=40
 post_power=125
+range=512
 
 [power]
 id=19
@@ -373,6 +376,7 @@ base_damage=none
 id=30
 name=Ice Shard [enemy]
 type=missile
+icon=20
 new_state=cast
 face=true
 directional=true
@@ -400,6 +404,7 @@ wall_power=126
 id=31
 name=Fireshot [enemy]
 type=missile
+icon=20
 new_state=cast
 face=true
 directional=true
@@ -499,6 +504,7 @@ wall_power=124
 id=35
 name=Maddox's Ice Storm [enemy]
 type=missile
+icon=20
 new_state=cast
 face=true
 directional=true
@@ -630,7 +636,7 @@ id=41
 name=Paralyzing Spit
 type=missile
 icon=2
-description=Poison spit that stuns the target for 2 seconds
+description=Poison spit that stuns the target for 1 second
 new_state=swing
 face=true
 directional=true
@@ -647,7 +653,7 @@ frame_duration=2
 frame_size=64,64
 frame_offset=32,64
 starting_pos=melee
-stun_duration=60
+stun_duration=30
 
 # enemy version of multishot
 [power]
@@ -773,6 +779,7 @@ speed_variance=7
 [power]
 id=118
 name=Melee Fire
+icon=20
 trait_elemental=fire
 post_power=125
 base_damage=melee
@@ -781,6 +788,7 @@ starting_pos=melee
 [power]
 id=119
 name=Melee Ice
+icon=20
 trait_elemental=water
 post_power=126
 base_damage=melee
@@ -835,6 +843,7 @@ wall_power=124
 id=122
 name=Fire Ammo
 type=missile
+icon=20
 new_state=shoot
 face=true
 directional=true
@@ -859,6 +868,7 @@ wall_power=125
 id=123
 name=Ice Ammo
 type=missile
+icon=20
 new_state=shoot
 face=true
 directional=true
@@ -884,6 +894,7 @@ wall_power=126
 id=124
 name=Arrow Wall Strike
 type=effect
+icon=20
 gfx=arrow_stuck.png
 use_hazard=true
 rendered=true
@@ -900,6 +911,7 @@ starting_pos=target
 id=125
 name=Orange Spark
 type=effect
+icon=20
 gfx=spark_orange.png
 use_hazard=true
 rendered=true
@@ -916,6 +928,7 @@ visual_random=2
 id=126
 name=Blue Spark
 type=effect
+icon=20
 gfx=spark_blue.png
 use_hazard=true
 rendered=true
@@ -932,6 +945,7 @@ visual_random=2
 id=127
 name=Red Spark
 type=effect
+icon=20
 gfx=spark_red.png
 use_hazard=true
 rendered=true
@@ -948,6 +962,7 @@ visual_random=2
 id=128
 name=Necrotic Bolt
 type=missile
+icon=20
 new_state=shoot
 face=true
 gfx=plasmaball.png
@@ -990,6 +1005,7 @@ floor=true
 starting_pos=source
 buff_teleport=true
 requires_item=12
+range=512
 
 [power]
 id=130
@@ -1024,9 +1040,87 @@ id=132
 name=Enemy Beacon
 description=Bring other enemies into the fight with a dummy attack
 type=effect
+icon=20
 use_hazard=true
 lifespan=1
 radius=256
 multitarget=true
 source_type=hero
 beacon=true
+
+[power]
+id=133
+name=Summon Antlion
+type=spawn
+icon=20
+spawn_type=antlion
+new_state=cast
+starting_pos=source
+target_neighbor=1
+
+[power]
+id=134
+name=Summon Antlion Hatchling
+type=spawn
+icon=20
+spawn_type=antlion_hatchling
+new_state=cast
+starting_pos=source
+target_neighbor=1
+
+[power]
+id=135
+name=Transform into Antlion Freezer
+type=transform
+icon=21
+new_state=cast
+spawn_type=antlion_freezer
+requires_mp=5
+description=Transform into Antlion Freezer for 5 seconds
+sfx=quake.ogg
+transform_duration=150
+manual_untransform=true
+
+[power]
+id=136
+name=Disenchant
+type=transform
+icon=22
+new_state=cast
+spawn_type=untransform
+description=Transform back to human
+sfx=quake.ogg
+
+[power]
+id=137
+name=Summon Rotting Zombie
+type=spawn
+icon=20
+spawn_type=zombie_rotting
+new_state=cast
+starting_pos=source
+target_neighbor=1
+
+[power]
+id=138
+name=Transform into Antlion Freezer permanently
+type=transform
+icon=21
+new_state=cast
+spawn_type=antlion_freezer
+requires_mp=5
+description=Transform into Antlion Freezer permanently
+sfx=quake.ogg
+transform_duration=0
+manual_untransform=false
+
+[power]
+id=139
+name=Disenchant [item]
+type=transform
+icon=53
+new_state=cast
+spawn_type=untransform
+description=Transform back to human
+requires_item=948
+sfx=quake.ogg

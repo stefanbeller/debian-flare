@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,15 +22,18 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include "WidgetButton.h"
 #include "SharedResources.h"
 
+using namespace std;
+
 WidgetButton::WidgetButton(const std::string& _fileName)
 	: fileName(_fileName) {
 
 	buttons = NULL;
 	click = NULL;
 	label = "";
-	pos.x = pos.y = pos.w = pos.y = 0;
+	pos.x = pos.y = pos.w = pos.h = 0;
 	enabled = true;
 	pressed = false;
+	hover = false;
 	
 	loadArt();
 
@@ -47,32 +50,47 @@ void WidgetButton::loadArt() {
 	if(!buttons) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
 		SDL_Quit();
+		exit(1); // or abort ??
 	}
 	
 	// optimize
 	SDL_Surface *cleanup = buttons;
 	buttons = SDL_DisplayFormatAlpha(buttons);
 	SDL_FreeSurface(cleanup);
-	
+}
+
+bool WidgetButton::checkClick() {
+	if (checkClick(inpt->mouse.x,inpt->mouse.y))
+		return true;
+	else
+		return false;
 }
 
 /**
  * Sets and releases the "pressed" visual state of the button
  * If press and release, activate (return true)
  */
-bool WidgetButton::checkClick() {
+bool WidgetButton::checkClick(int x, int y) {
+	Point mouse = {x,y};
+
+	// Change the hover state
+	if (isWithin(pos, mouse)) {
+		hover = true;
+	} else {
+		hover = false;
+	}
 
 	// disabled buttons can't be clicked;
 	if (!enabled) return false;
 
 	// main button already in use, new click not allowed
-	if (inp->lock[MAIN1]) return false;
+	if (inpt->lock[MAIN1]) return false;
 
 	// main click released, so the button state goes back to unpressed
-	if (pressed && !inp->lock[MAIN1]) {
+	if (pressed && !inpt->lock[MAIN1]) {
 		pressed = false;
 		
-		if (isWithin(pos, inp->mouse)) {
+		if (isWithin(pos, mouse)) {
 		
 			// activate upon release
 			return true;
@@ -82,19 +100,22 @@ bool WidgetButton::checkClick() {
 	pressed = false;
 	
 	// detect new click
-	if (inp->pressing[MAIN1]) {
-		if (isWithin(pos, inp->mouse)) {
+	if (inpt->pressing[MAIN1]) {
+		if (isWithin(pos, mouse)) {
 		
-			inp->lock[MAIN1] = true;
+			inpt->lock[MAIN1] = true;
 			pressed = true;
 
 		}
 	}
 	return false;
-	
+
 }
 
-void WidgetButton::render() {
+void WidgetButton::render(SDL_Surface *target) {
+	if (target == NULL) {
+		target = screen;
+	}
 	SDL_Rect src;
 	src.x = 0;
 	src.w = pos.w;
@@ -106,14 +127,17 @@ void WidgetButton::render() {
 		src.y = BUTTON_GFX_DISABLED * pos.h;
 	else if (pressed)
 		src.y = BUTTON_GFX_PRESSED * pos.h;
-	else if (isWithin(pos, inp->mouse))
+	else if (hover)
 		src.y = BUTTON_GFX_HOVER * pos.h;
 	else
 		src.y = BUTTON_GFX_NORMAL * pos.h;
 	
-	SDL_BlitSurface(buttons, &src, screen, &pos);
+	// create a temporary rect so we don't modify pos
+	SDL_Rect offset = pos;
 
-	wlabel.render();
+	SDL_BlitSurface(buttons, &src, target, &offset);
+
+	wlabel.render(target);
 }
 
 /**

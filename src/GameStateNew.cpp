@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,11 +22,20 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  * (e.g. character appearance)
  */
 
+#include "Avatar.h"
+#include "FileParser.h"
+#include "GameStateConfig.h"
 #include "GameStateNew.h"
 #include "GameStateLoad.h"
 #include "GameStatePlay.h"
 #include "SharedResources.h"
+#include "WidgetButton.h"
+#include "WidgetCheckBox.h"
+#include "WidgetInput.h"
 #include "WidgetLabel.h"
+
+using namespace std;
+
 
 GameStateNew::GameStateNew() : GameState() {
 	game_slot = 0;
@@ -57,13 +66,21 @@ GameStateNew::GameStateNew() : GameState() {
 	button_next->pos.y = VIEW_H_HALF - button_next->pos.h;
 
 	input_name = new WidgetInput();
-	input_name->setPosition(VIEW_W_HALF - input_name->pos.w/2, VIEW_H_HALF+184);
+	input_name->setPosition(VIEW_W_HALF - input_name->pos.w/2, VIEW_H_HALF+164);
+
+	button_permadeath = new WidgetCheckBox(mods->locate(
+												"images/menus/buttons/checkbox_default.png"));
+	button_permadeath->pos.x = input_name->pos.x;
+	button_permadeath->pos.y = input_name->pos.y + input_name->pos.h + 5;
 
 	// set up labels
 	label_portrait = new WidgetLabel();
-	label_portrait->set(VIEW_W_HALF, VIEW_H_HALF-176, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Choose a Portrait"), FONT_GREY);
+	label_portrait->set(VIEW_W_HALF, VIEW_H_HALF-200, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Choose a Portrait"), FONT_GREY);
 	label_name = new WidgetLabel();
-	label_name->set(VIEW_W_HALF, VIEW_H_HALF+168, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Choose a Name"), FONT_GREY);
+	label_name->set(VIEW_W_HALF, VIEW_H_HALF+148, JUSTIFY_CENTER, VALIGN_TOP, msg->get("Choose a Name"), FONT_GREY);
+	label_permadeath = new WidgetLabel();
+	label_permadeath->set(button_permadeath->pos.x + button_permadeath->pos.w + 5, button_permadeath->pos.y + button_permadeath->pos.h/2,
+															JUSTIFY_LEFT, VALIGN_CENTER, msg->get("Permadeath?"), FONT_GREY);
 
 	loadGraphics();
 	loadOptions("hero_options.txt");
@@ -87,7 +104,7 @@ void GameStateNew::loadGraphics() {
 	SDL_FreeSurface(cleanup);
 }
 
-void GameStateNew::loadPortrait(string portrait_filename) {
+void GameStateNew::loadPortrait(const string& portrait_filename) {
 	SDL_FreeSurface(portrait_image);
 	portrait_image = NULL;
 	
@@ -105,7 +122,7 @@ void GameStateNew::loadPortrait(string portrait_filename) {
  *
  * @param filename File containing entries for option=base,look
  */
-void GameStateNew::loadOptions(string filename) {
+void GameStateNew::loadOptions(const string& filename) {
 	FileParser fin;
 	if (!fin.open(mods->locate("engine/" + filename))) return;
 	
@@ -126,6 +143,7 @@ void GameStateNew::loadOptions(string filename) {
 }
 
 void GameStateNew::logic() {
+	button_permadeath->checkClick();
 
 	// require character name
 	if (input_name->getText() == "") {
@@ -142,6 +160,7 @@ void GameStateNew::logic() {
 	}
 
 	if (button_exit->checkClick()) {
+		delete requestedGameState;
 		requestedGameState = new GameStateLoad();
 	}
 	
@@ -152,6 +171,7 @@ void GameStateNew::logic() {
 		play->pc->stats.head = head[current_option];
 		play->pc->stats.portrait = portrait[current_option];
 		play->pc->stats.name = input_name->getText();
+		play->pc->stats.permadeath = button_permadeath->isChecked();
 		play->game_slot = game_slot;
 		play->resetGame();
 		requestedGameState = play;
@@ -181,6 +201,7 @@ void GameStateNew::render() {
 	button_prev->render();
 	button_next->render();
 	input_name->render();
+	button_permadeath->render();
 	
 	// display portrait option
 	SDL_Rect src;
@@ -189,7 +210,7 @@ void GameStateNew::render() {
 	src.w = src.h = dest.w = dest.h = 320;
 	src.x = src.y = 0;
 	dest.x = VIEW_W_HALF - 160;
-	dest.y = VIEW_H_HALF - 160;
+	dest.y = VIEW_H_HALF - 180;
 
 	if (portrait != NULL) {
 		SDL_BlitSurface(portrait_image, &src, screen, &dest);		
@@ -201,6 +222,7 @@ void GameStateNew::render() {
 	// display labels
 	label_portrait->render();
 	label_name->render();
+	label_permadeath->render();
 }
 
 GameStateNew::~GameStateNew() {
@@ -210,5 +232,9 @@ GameStateNew::~GameStateNew() {
 	delete button_create;
 	delete button_next;
 	delete button_prev;
+	delete label_portrait;
+	delete label_name;
 	delete input_name;
+	delete button_permadeath;
+	delete label_permadeath;
 }

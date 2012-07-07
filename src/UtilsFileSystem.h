@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -31,6 +31,7 @@ bool dirExists(std::string path);
 void createDir(std::string path);
 bool fileExists(std::string filename);
 int getFileList(std::string dir, std::string ext, std::vector<std::string> &files);
+int getDirList(std::string dir, std::vector<std::string> &dirs);
 
 
 

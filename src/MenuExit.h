@@ -1,5 +1,5 @@
 /*
-Copyright 2011 kitano
+Copyright © 2011-2012 kitano
 
 This file is part of FLARE.
 
@@ -24,7 +24,6 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 
 #include "Menu.h"
 #include "WidgetButton.h"
-#include "SharedResources.h"
 
 #include <SDL_image.h>
 

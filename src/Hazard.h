@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -32,8 +32,9 @@ class Entity;
 #include <SDL_image.h>
 #include <SDL_mixer.h>
 #include "Utils.h"
-#include "MapCollision.h"
-#include "StatBlock.h"
+
+class StatBlock;
+class MapCollision;
 
 // the spell/power's source type: eg. which team did it come from?
 const int SOURCE_TYPE_HERO = 0;
@@ -45,7 +46,7 @@ private:
 	MapCollision *collider;
 	// Keeps track of entities already hit
 	std::vector<Entity*> entitiesCollided;
-      
+	  
 public:
 	Hazard();
 
@@ -100,6 +101,8 @@ public:
 	int immobilize_duration;
 	int slow_duration;
 	int bleed_duration;
+	int forced_move_speed;
+	int forced_move_duration;
 	int hp_steal;
 	int mp_steal;
 	

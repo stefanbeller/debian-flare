@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -25,27 +25,24 @@ mods in priority order when loading data files.
 #ifndef MOD_MANAGER_H
 #define MOD_MANAGER_H
 
-#include "Settings.h"
-#include "UtilsParsing.h"
+#define FALLBACK_MOD "fantasycore"
+
 #include <string>
 #include <map>
 #include <vector>
-#include <fstream>
-
-using namespace std;
 
 class ModManager {
 private:
 	void loadModList();
 
-	map<string,string> loc_cache;
-	
+	std::map<std::string,std::string> loc_cache;
+
 public:
 	ModManager();
 	~ModManager();
-	string locate(string filename);
+	std::string locate(const std::string& filename);
 
-	vector<string> mod_list;
+	std::vector<std::string> mod_list;
 };
 
 #endif

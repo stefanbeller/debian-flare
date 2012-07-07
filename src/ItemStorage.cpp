@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -19,7 +19,14 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  * class ItemStorage
  */
 
+#include "ItemManager.h"
 #include "ItemStorage.h"
+#include "UtilsParsing.h"
+
+#include <sstream>
+
+using namespace std;
+
 
 void ItemStorage::init(int _slot_number, ItemManager *_items) {
 	slot_number = _slot_number;

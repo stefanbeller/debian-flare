@@ -813,7 +813,7 @@ intermap=white_wind.txt,100,4
 # to Ancient Temple
 type=teleport
 location=117,134,4,4
-intermap=ancient_temple.txt,64,64
+intermap=ancient_temple.txt,49,99
 
 [event]
 # camp supply
@@ -860,6 +860,11 @@ tooltip=Supplies
 type=teleport
 location=35,194,1,2
 intermap=hidden_grove.txt,120,60
+
+[event]
+type=run_once
+location=48,155,5,5
+spawn=zombie_rotting,45,155;zombie_rotting,46,160;zombie_rotting,50,153;zombie_rotting,52,161;zombie_rotting,54,157
 
 [enemygroup]
 # goblin camp
@@ -1041,4 +1046,16 @@ number=8,12
 type=zombie_brute
 location=20,158,1,1
 direction=1
+
+[enemy]
+# guarding wyvern
+type=wyvern
+location=119,128,1,1
+direction=3
+
+[enemy]
+# Zombie spawner
+type=cursed_grave
+location=32,153,1,1
+direction=3
 

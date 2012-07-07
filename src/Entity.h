@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger and kitano
+Copyright © 2011-2012 Clint Bellanger and kitano
 
 This file is part of FLARE.
 
@@ -26,16 +26,15 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #define ENTITY_H
 
 #include "MapIso.h"
-#include "Animation.h"
-#include "Utils.h"
+#include "StatBlock.h"
 #include <vector>
+
+class Animation;
 
 class Entity {
 protected:
 	SDL_Surface *sprites;
-	Animation *activeAnimation;
-	MapIso* map;
-	vector<Animation*> animations;
+	std::vector<Animation*> animations;
 
 public:
 	Entity(MapIso*);
@@ -48,9 +47,10 @@ public:
 	virtual Renderable getRender() = 0;
 
 	void loadAnimations(const std::string& filename);
-
 	bool setAnimation(const std::string& animation);
+	Animation *activeAnimation;
 
+	MapIso* map;
 	StatBlock stats;
 };
 

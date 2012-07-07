@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,27 +22,29 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef WIDGET_BUTTON_H
 #define WIDGET_BUTTON_H
 
+#include "Widget.h"
+#include "WidgetLabel.h"
+
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
-#include "Utils.h"
-#include "FontEngine.h"
-#include "InputState.h"
+
 #include <string>
-#include "WidgetLabel.h"
+
 
 const int BUTTON_GFX_NORMAL = 0;
 const int BUTTON_GFX_PRESSED = 1;
 const int BUTTON_GFX_HOVER = 2;
 const int BUTTON_GFX_DISABLED = 3;
 
-class WidgetButton {
+class WidgetButton : public Widget {
 private:
 
 	std::string fileName; // the path to the buttons background image
 
 	SDL_Surface *buttons;
 	Mix_Chunk *click;
+	bool hover;
 	
 	WidgetLabel wlabel;
 	
@@ -52,10 +54,11 @@ public:
 
 	void loadArt();
 	bool checkClick();
-	void render();
+	bool checkClick(int x, int y);
+	void render(SDL_Surface *target = NULL);
 	void refresh();
 
-	string label;
+	std::string label;
 	SDL_Rect pos;
 	bool enabled;
 	bool pressed;

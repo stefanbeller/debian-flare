@@ -802,7 +802,7 @@
 3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
 </data>
  </layer>
- <objectgroup name="event" width="256" height="256" visible="0">
+ <objectgroup name="event" width="256" height="256">
   <object name="to Frontier Outpost" type="teleport" x="7968" y="5952" width="32" height="64">
    <properties>
     <property name="intermap" value="frontier_outpost.txt,2,12"/>
@@ -825,7 +825,7 @@
   </object>
   <object name="to Ancient Temple" type="teleport" x="3744" y="4288" width="128" height="128">
    <properties>
-    <property name="intermap" value="ancient_temple.txt,64,64"/>
+    <property name="intermap" value="ancient_temple.txt,49,99"/>
    </properties>
   </object>
   <object x="3616" y="4224"/>
@@ -868,6 +868,11 @@
   <object name="hidden grove entrance" type="teleport" x="1120" y="6208" width="32" height="64">
    <properties>
     <property name="intermap" value="hidden_grove.txt,120,60"/>
+   </properties>
+  </object>
+  <object type="run_once" x="1536" y="4960" width="160" height="160">
+   <properties>
+    <property name="spawn" value="zombie_rotting,45,155;zombie_rotting,46,160;zombie_rotting,50,153;zombie_rotting,52,161;zombie_rotting,54,157"/>
    </properties>
   </object>
  </objectgroup>
@@ -1029,5 +1034,16 @@
     <property name="direction" value="1"/>
    </properties>
   </object>
+  <object name="guarding wyvern" type="wyvern" x="3808" y="4096" width="32" height="32">
+   <properties>
+    <property name="direction" value="3"/>
+   </properties>
+  </object>
+  <object name="Zombie spawner" type="cursed_grave" x="1024" y="4896" width="32" height="32">
+   <properties>
+    <property name="direction" value="3"/>
+   </properties>
+  </object>
+  <object x="1592" y="4998"/>
  </objectgroup>
 </map>

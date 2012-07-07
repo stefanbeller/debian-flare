@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -24,13 +24,9 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <string>
 #include <SDL.h>
 #include <SDL_image.h>
-#include "math.h"
-#include "Settings.h"
-
-using namespace std;
+#include <string>
 
 struct Point {
 	int x,y;
@@ -51,12 +47,12 @@ struct Renderable {
 };
 
 struct Event_Component {
-	string type;
-	string s;
+	std::string type;
+	std::string s;
 	int x;
 	int y;
 	int z;
-	
+
 	Event_Component() {
 		type = s = "";
 		x = y = z = 0;
@@ -68,13 +64,18 @@ int round(float f);
 Point round(FPoint fp);
 Point screen_to_map(int x, int y, int camx, int camy);
 Point map_to_screen(int x, int y, int camx, int camy);
+Point center_tile(Point p);
+Point map_to_collision(Point p);
+Point collision_to_map(Point p);
 FPoint calcVector(Point pos, int direction, int dist);
 double calcDist(Point p1, Point p2);
 bool isWithin(Point center, int radius, Point target);
 bool isWithin(SDL_Rect r, Point target);
-void zsort(Renderable r[], int rnum);
-void sort_by_tile(Renderable r[], int rnum);
+void sort_by_tile_iso(Renderable r[], int rnum);
+void sort_by_tile_ortho(Renderable r[], int rnum);
 void drawPixel(SDL_Surface *screen, int x, int y, Uint32 color);
+void drawLine(SDL_Surface *screen, int x0, int y0, int x1, int y1, Uint32 color);
+void drawLine(SDL_Surface *screen, Point pos0, Point pos1, Uint32 color);
 SDL_Surface* createSurface(int width, int height);
 
 /**

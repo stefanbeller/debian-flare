@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -15,9 +15,15 @@ You should have received a copy of the GNU General Public License along with
 FLARE.  If not, see http://www.gnu.org/licenses/
 */
 
-#include "SharedResources.h"
+#include "ModManager.h"
+#include "Settings.h"
 #include "UtilsFileSystem.h"
+#include "UtilsParsing.h"
 #include <SDL.h>
+#include <fstream>
+
+using namespace std;
+
 
 ModManager::ModManager() {
 	loc_cache.clear();
@@ -27,7 +33,9 @@ ModManager::ModManager() {
 }
 
 /**
- * The mod list is in [PATH_DATA]/mods/mods.txt
+ * The mod list is in either:
+ * 1. [PATH_CONF]/mods.txt
+ * 2. [PATH_DATA]/mods/mods.txt
  * The mods.txt file shows priority/load order for mods
  *
  * File format:
@@ -38,25 +46,29 @@ void ModManager::loadModList() {
 	ifstream infile;
 	string line;
 	string starts_with;
-	
-	infile.open((PATH_DATA + "mods/mods.txt").c_str(), ios::in);
+
+	infile.open((PATH_CONF + "mods.txt").c_str(), ios::in);
 
 	if (!infile.is_open()) {
-		fprintf(stderr, "Error during ModManager::loadModList() -- couldn't open mods/mods.txt\n");
-		SDL_Quit();
-		exit(1);
+		infile.open((PATH_DATA + "mods/mods.txt").c_str(), ios::in);
+
+		if (!infile.is_open()) {
+			fprintf(stderr, "Error during ModManager::loadModList() -- couldn't open mods/mods.txt\n");
+			SDL_Quit();
+			exit(1);
+		}
 	}
-	
+
 	while (!infile.eof()) {
 		line = getLine(infile);
-		
+
 		// skip ahead if this line is empty
 		if (line.length() == 0) continue;
-		
+
 		// skip comments
 		starts_with = line.at(0);
 		if (starts_with == "#") continue;
-				
+
 		mod_list.push_back(line);
 	}
 	infile.close();
@@ -66,16 +78,16 @@ void ModManager::loadModList() {
  * Find the location (mod file name) for this data file.
  * Use private loc_cache to prevent excessive disk I/O
  */
-string ModManager::locate(string filename) {
+string ModManager::locate(const string& filename) {
 
 	// if we have this location already cached, return it
 	if (loc_cache.find(filename) != loc_cache.end()) {
 		return loc_cache[filename];
 	}
-	
+
 	// search through mods for the first instance of this filename
 	string test_path;
-	
+
 	for (unsigned int i = mod_list.size(); i>0; i--) {
 		test_path = PATH_DATA + "mods/" + mod_list[i-1] + "/" + filename;
 		if (fileExists(test_path)) {

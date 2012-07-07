@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -15,19 +15,10 @@ You should have received a copy of the GNU General Public License along with
 FLARE.  If not, see http://www.gnu.org/licenses/
 */
 
-/**
- * class InputState
- *
- * Handles keyboard and mouse states
- */
-
 #ifndef INPUT_STATE_H
 #define INPUT_STATE_H
 
-#include "FileParser.h"
 #include "Utils.h"
-#include "UtilsParsing.h"
-#include "Settings.h"
 
 #include <SDL.h>
 #include <string>
@@ -69,24 +60,36 @@ const int CTRL = 22;
 const int SHIFT = 23;
 const int DEL = 24;
 
+/**
+ * class InputState
+ *
+ * Handles keyboard and mouse states
+ */
+
 class InputState {
-private:
+public:
 	static const int key_count = 25;
+	static const int joy_key_count = 2;
 	int binding[key_count];
 	int binding_alt[key_count];
-public:
+	int joy_binding[joy_key_count];
 	InputState(void);
 	~InputState();
+
+	void defaultQwertyKeyBindings();
 	void loadKeyBindings();
 	void saveKeyBindings();
-	void handle();
+	void handle(bool dump_event);
 
 	bool pressing[key_count];
 	bool lock[key_count];
+	bool joy_pressing[joy_key_count];
 	
 	bool done;
 	Point mouse;
 	std::string inkeys;
+	int last_key;
+	int last_button;
 };
 
 #endif

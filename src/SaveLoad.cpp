@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -23,7 +23,16 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  * class GameStatePlay
  */
 
+#include "Avatar.h"
+#include "CampaignManager.h"
+#include "FileParser.h"
 #include "GameStatePlay.h"
+#include "MenuActionBar.h"
+#include "MenuCharacter.h"
+#include "MenuInventory.h"
+#include "MenuManager.h"
+#include "MenuTalker.h"
+#include "UtilsFileSystem.h"
 #include "UtilsParsing.h"
 #include <fstream>
 #include <iostream>
@@ -51,6 +60,9 @@ void GameStatePlay::saveGame() {
 
 		// hero name
 		outfile << "name=" << pc->stats.name << "\n";
+
+		// permadeath
+		outfile << "permadeath=" << pc->stats.permadeath << "\n";
 		
 		// hero visual option
 		outfile << "option=" << pc->stats.base << "," << pc->stats.head << "," << pc->stats.portrait << "\n";
@@ -78,11 +90,16 @@ void GameStatePlay::saveGame() {
 		// action bar
 		outfile << "actionbar=";
 		for (int i=0; i<12; i++) {
-			outfile << menu->act->hotkeys[i];
+			if (pc->stats.transformed) outfile << menu->act->actionbar[i];
+			else outfile << menu->act->hotkeys[i];
 			if (i<11) outfile << ",";
 		}
 		outfile << "\n";
 		
+		//shapeshifter value
+		if (pc->stats.transform_type == "untransform") outfile << "transformed=" << "\n";
+		else outfile << "transformed=" << pc->stats.transform_type << "\n";
+
 		// campaign data
 		outfile << "campaign=";
 		outfile << camp->getAll();
@@ -115,7 +132,10 @@ void GameStatePlay::loadGame() {
 	if (infile.open(ss.str())) {
 		while (infile.next()) {
 			if (infile.key == "name") pc->stats.name = infile.val;
-			else if (infile.key == "option") {			
+			else if (infile.key == "permadeath") {
+			    pc->stats.permadeath = atoi(infile.val.c_str());
+			}
+			else if (infile.key == "option") {
 				pc->stats.base = infile.nextValue();
 				pc->stats.head = infile.nextValue();
 				pc->stats.portrait = infile.nextValue();
@@ -166,10 +186,14 @@ void GameStatePlay::loadGame() {
 					hotkeys[i] = atoi(infile.nextValue().c_str());
 				menu->act->set(hotkeys);
 			}
+			else if (infile.key == "transformed") {
+				pc->stats.transform_type = infile.nextValue().c_str();
+				if (pc->stats.transform_type != "") pc->stats.transform_duration = -1;
+			}
 			else if (infile.key == "campaign") camp->setAll(infile.val);
 		}
 			
-		infile.close();		
+		infile.close();
 	}
 
 	// initialize vars
@@ -180,13 +204,13 @@ void GameStatePlay::loadGame() {
 	
 	// reset character menu
 	menu->chr->refreshStats();
-	
+
 	// just for aesthetics, turn the hero to face the camera
 	pc->stats.direction = 6;
-	
+
 	// set up MenuTalker for this hero
 	menu->talker->setHero(pc->stats.name, pc->stats.portrait);
-	
+
 	// load sounds (gender specific)
 	pc->loadSounds();
 

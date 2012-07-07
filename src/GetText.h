@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Thane Brimhall & Clint Bellanger
+Copyright © 2011-2012 Thane Brimhall & Clint Bellanger
 
 This file is part of FLARE.
 
@@ -27,25 +27,24 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 
 #include <fstream>
 #include <string>
-#include "UtilsParsing.h"
 
 class GetText {
 private:
-	ifstream infile;
-	string line;
-	string sanitize(string input);
-	
+	std::ifstream infile;
+	std::string line;
+	std::string sanitize(std::string input);
+
 public:
 	GetText();
 	~GetText();
-	
-	bool open(string filename);
+
+	bool open(const std::string& filename);
 	void close();
 	bool next();
 
-	string key;
-	string val;
-	
+	std::string key;
+	std::string val;
+
 };
 
 #endif

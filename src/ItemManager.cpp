@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,13 +22,22 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include "ItemManager.h"
 #include "FileParser.h"
 #include "SharedResources.h"
+#include "Settings.h"
+#include "StatBlock.h"
 #include "UtilsFileSystem.h"
 #include "WidgetLabel.h"
 
+#include <sstream>
+#include <fstream>
+#include <cstring>
+
+using namespace std;
+
+
 ItemManager::ItemManager() {
-	
+
 	items = new Item[MAX_ITEM_ID];
-	
+
 	for (int i=0; i<MAX_ITEM_ID; i++) {
 		items[i].bonus_stat = new string[ITEM_MAX_BONUSES];
 		items[i].bonus_val = new int[ITEM_MAX_BONUSES];
@@ -65,21 +74,21 @@ void ItemManager::loadAll() {
 
 /**
  * Load a specific items file
- * 
+ *
  * @param filename The full path and name of the file to load
  */
-void ItemManager::load(string filename) {
+void ItemManager::load(const string& filename) {
 	FileParser infile;
 	int id = 0;
 	string s;
 	int bonus_counter = 0;
 
 	if (infile.open(filename)) {
-	
+
 		while (infile.next()) {
 			if (infile.key == "id") {
 				id = atoi(infile.val.c_str());
-				
+
 				// new item, reset bonus counter
 				bonus_counter = 0;
 			}
@@ -186,6 +195,8 @@ void ItemManager::load(string filename) {
 				items[id].power_desc = msg->get(infile.val);
 			else if (infile.key == "price")
 				items[id].price = atoi(infile.val.c_str());
+			else if (infile.key == "price_sell")
+				items[id].price_sell = atoi(infile.val.c_str());
 			else if (infile.key == "max_quantity")
 				items[id].max_quantity = atoi(infile.val.c_str());
 			else if (infile.key == "rand_loot")
@@ -196,47 +207,49 @@ void ItemManager::load(string filename) {
 				items[id].pickup_status = infile.val;
 			else if (infile.key == "stepfx")
 				items[id].stepfx = infile.val;
-				
+
 		}
 		infile.close();
 	}
 }
 
 void ItemManager::loadSounds() {
+    memset(sfx, 0, sizeof(sfx));
 
-	sfx[SFX_BOOK] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_book.ogg").c_str());
-	sfx[SFX_CLOTH] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_cloth.ogg").c_str());
-	sfx[SFX_COINS] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_coins.ogg").c_str());
-	sfx[SFX_GEM] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_gem.ogg").c_str());
-	sfx[SFX_LEATHER] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_leather.ogg").c_str());
-	sfx[SFX_METAL] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_metal.ogg").c_str());
-	sfx[SFX_PAGE] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_page.ogg").c_str());
-	sfx[SFX_MAILLE] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_maille.ogg").c_str());
-	sfx[SFX_OBJECT] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_object.ogg").c_str());
-	sfx[SFX_HEAVY] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_heavy.ogg").c_str());
-	sfx[SFX_WOOD] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_wood.ogg").c_str());
-	sfx[SFX_POTION] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_potion.ogg").c_str());
-
+    if (audio == true) {
+        sfx[SFX_BOOK] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_book.ogg").c_str());
+        sfx[SFX_CLOTH] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_cloth.ogg").c_str());
+        sfx[SFX_COINS] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_coins.ogg").c_str());
+        sfx[SFX_GEM] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_gem.ogg").c_str());
+        sfx[SFX_LEATHER] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_leather.ogg").c_str());
+        sfx[SFX_METAL] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_metal.ogg").c_str());
+        sfx[SFX_PAGE] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_page.ogg").c_str());
+        sfx[SFX_MAILLE] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_maille.ogg").c_str());
+        sfx[SFX_OBJECT] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_object.ogg").c_str());
+        sfx[SFX_HEAVY] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_heavy.ogg").c_str());
+        sfx[SFX_WOOD] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_wood.ogg").c_str());
+        sfx[SFX_POTION] = Mix_LoadWAV(mods->locate("soundfx/inventory/inventory_potion.ogg").c_str());
+    }
 }
 
 /**
  * Icon sets
  */
 void ItemManager::loadIcons() {
-	
+
 	icons32 = IMG_Load(mods->locate("images/icons/icons32.png").c_str());
 	icons64 = IMG_Load(mods->locate("images/icons/icons64.png").c_str());
-	
+
 	if(!icons32 || !icons64) {
 		fprintf(stderr, "Couldn't load icons: %s\n", IMG_GetError());
 		SDL_Quit();
 	}
-	
+
 	// optimize
 	SDL_Surface *cleanup = icons32;
 	icons32 = SDL_DisplayFormatAlpha(icons32);
 	SDL_FreeSurface(cleanup);
-	
+
 	cleanup = icons64;
 	icons64 = SDL_DisplayFormatAlpha(icons64);
 	SDL_FreeSurface(cleanup);
@@ -264,7 +277,7 @@ void ItemManager::renderIcon(ItemStack stack, int x, int y, int size) {
 		src.y = (items[stack.item].icon64 / columns) * size;
 		SDL_BlitSurface(icons64, &src, screen, &dest);
 	}
-	
+
 	if( stack.quantity > 1 || items[stack.item].max_quantity > 1) {
 		// stackable item : show the quantity
 		stringstream ss;
@@ -277,21 +290,22 @@ void ItemManager::renderIcon(ItemStack stack, int x, int y, int size) {
 }
 
 void ItemManager::playSound(int item) {
-	if (items[item].sfx != SFX_NONE)
-		if (sfx[items[item].sfx])
-			Mix_PlayChannel(-1, sfx[items[item].sfx], 0);
+    if (items[item].sfx != SFX_NONE)
+        if (sfx[items[item].sfx])
+            Mix_PlayChannel(-1, sfx[items[item].sfx], 0);
 }
 
 void ItemManager::playCoinsSound() {
-	Mix_PlayChannel(-1, sfx[SFX_COINS], 0);
+    if (sfx[SFX_COINS])
+        Mix_PlayChannel(-1, sfx[SFX_COINS], 0);
 }
 
-TooltipData ItemManager::getShortTooltip( ItemStack stack) {
+TooltipData ItemManager::getShortTooltip(ItemStack stack) {
 	stringstream ss;
 	TooltipData tip;
-	
+
 	if (stack.item == 0) return tip;
-	
+
 	// name
 	if( stack.quantity > 1) {
 		ss << stack.quantity << " " << items[stack.item].name;
@@ -299,7 +313,7 @@ TooltipData ItemManager::getShortTooltip( ItemStack stack) {
 		ss << items[stack.item].name;
 	}
 	tip.lines[tip.num_lines++] = ss.str();
-	
+
 	// color quality
 	if (items[stack.item].quality == ITEM_QUALITY_LOW) {
 		tip.colors[0] = FONT_GRAY;
@@ -310,7 +324,7 @@ TooltipData ItemManager::getShortTooltip( ItemStack stack) {
 	else if (items[stack.item].quality == ITEM_QUALITY_EPIC) {
 		tip.colors[0] = FONT_BLUE;
 	}
-	
+
 	return tip;
 }
 
@@ -319,12 +333,12 @@ TooltipData ItemManager::getShortTooltip( ItemStack stack) {
  */
 TooltipData ItemManager::getTooltip(int item, StatBlock *stats, bool vendor_view) {
 	TooltipData tip;
-	
+
 	if (item == 0) return tip;
-	
+
 	// name
 	tip.lines[tip.num_lines++] = items[item].name;
-	
+
 	// color quality
 	if (items[item].quality == ITEM_QUALITY_LOW) {
 		tip.colors[0] = FONT_GRAY;
@@ -335,12 +349,12 @@ TooltipData ItemManager::getTooltip(int item, StatBlock *stats, bool vendor_view
 	else if (items[item].quality == ITEM_QUALITY_EPIC) {
 		tip.colors[0] = FONT_BLUE;
 	}
-	
+
 	// level
 	if (items[item].level != 0) {
 		tip.lines[tip.num_lines++] = msg->get("Level %d", items[item].level);
 	}
-	
+
 	// type
 	if (items[item].type != ITEM_TYPE_OTHER) {
 		if (items[item].type == ITEM_TYPE_MAIN)
@@ -358,7 +372,7 @@ TooltipData ItemManager::getTooltip(int item, StatBlock *stats, bool vendor_view
 		else if (items[item].type == ITEM_TYPE_QUEST)
 			tip.lines[tip.num_lines++] = msg->get("Quest Item");
 	}
-	
+
 	// damage
 	if (items[item].dmg_max > 0) {
 		if (items[item].req_stat == REQUIRES_PHYS) {
@@ -405,13 +419,13 @@ TooltipData ItemManager::getTooltip(int item, StatBlock *stats, bool vendor_view
 		bonus_counter++;
 		if (bonus_counter == ITEM_MAX_BONUSES) break;
 	}
-	
+
 	// power
 	if (items[item].power_desc != "") {
 		tip.colors[tip.num_lines] = FONT_GREEN;
 		tip.lines[tip.num_lines++] = items[item].power_desc;
 	}
-	
+
 	// requirement
 	if (items[item].req_val > 0) {
 		if (items[item].req_stat == REQUIRES_PHYS) {
@@ -431,7 +445,7 @@ TooltipData ItemManager::getTooltip(int item, StatBlock *stats, bool vendor_view
 			tip.lines[tip.num_lines++] = msg->get("Requires Defense %d", items[item].req_val);
 		}
 	}
-	
+
 	// buy or sell price
 	if (items[item].price > 0) {
 
@@ -443,7 +457,11 @@ TooltipData ItemManager::getTooltip(int item, StatBlock *stats, bool vendor_view
 				tip.lines[tip.num_lines++] = msg->get("Buy Price: %d gold each", items[item].price);
 		}
 		else {
-			int price_per_unit = items[item].price/vendor_ratio;
+			int price_per_unit;
+			if(items[item].price_sell != 0)
+				price_per_unit = items[item].price_sell;
+			else
+				price_per_unit = items[item].price/vendor_ratio;
 			if (price_per_unit == 0) price_per_unit = 1;
 			if (items[item].max_quantity <= 1)
 				tip.lines[tip.num_lines++] = msg->get("Sell Price: %d gold", price_per_unit);
@@ -461,16 +479,18 @@ ItemManager::~ItemManager() {
 	SDL_FreeSurface(icons32);
 	SDL_FreeSurface(icons64);
 
-	for (int i=0; i<12; i++) {
-		if (sfx[i])
-			Mix_FreeChunk(sfx[i]);
-	}
-	
+    if (audio == true) {
+        for (int i=0; i<12; i++) {
+            if (sfx[i])
+                Mix_FreeChunk(sfx[i]);
+        }
+    }
+
 	for (int i=0; i<MAX_ITEM_ID; i++) {
 		delete[] items[i].bonus_stat;
-		delete[] items[i].bonus_val;		
+		delete[] items[i].bonus_val;
 	}
-	
+
 	delete[] items;
 
 }

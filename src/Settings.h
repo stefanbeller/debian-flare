@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -29,6 +29,10 @@ extern std::string PATH_CONF; // user-configurable settings files
 extern std::string PATH_USER; // important per-user data (saves)
 extern std::string PATH_DATA; // common game data
 
+// Filenames
+extern std::string FILE_SETTINGS;     // Name of the settings file (e.g. "settings.txt").
+extern std::string FILE_KEYBINDINGS;  // Name of the key bindings file (e.g. "keybindings.txt").
+
 // Audio and Video Settings
 extern int MUSIC_VOLUME;
 extern int SOUND_VOLUME;
@@ -40,11 +44,15 @@ extern int VIEW_W_HALF;
 extern int VIEW_H_HALF;
 extern bool DOUBLEBUF;
 extern bool HWSURFACE;
+extern float GAMMA;
 
 // Input Settings
 extern bool MOUSE_MOVE;
 extern bool ENABLE_JOYSTICK;
 extern int JOYSTICK_DEVICE;
+
+// User Options
+extern bool COMBAT_TEXT;
 
 // Engine Settings
 extern bool MENUS_PAUSE;
@@ -58,12 +66,30 @@ extern int TILE_W;
 extern int TILE_H;
 extern int TILE_W_HALF;
 extern int TILE_H_HALF;
+extern int TILESET_ORIENTATION;
+extern int TILESET_ISOMETRIC;
+extern int TILESET_ORTHOGONAL;
 
 // Language Settings
 extern std::string LANGUAGE;
 
+// Autopickup Settings
+extern int AUTOPICKUP_RANGE;
+extern bool AUTOPICKUP_GOLD;
+
 void setPaths();
+void loadTilesetSettings();
+void loadAutoPickupSettings();
 bool loadSettings();
 bool saveSettings();
+bool loadDefaults();
+
+const std::string binding_name[] = {"Cancel", "Accept", "Up", "Down", "Left", "Right",
+									"Bar1", "Bar2", "Bar3", "Bar4", "Bar5", "Bar6",
+									"Bar7", "Bar8", "Bar9", "Bar0", "Character", "Inventory",
+									"Powers", "Log", "Main1", "Main2", "Ctrl",
+									"Shift", "Delete"};
+
+const std::string mouse_button[] = {"lmb", "mmb", "rmb", "wheel up", "wheel down", "mbx1", "mbx2"};
 
 #endif

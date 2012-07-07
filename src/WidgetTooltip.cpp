@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -21,7 +21,11 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 
 #include "WidgetTooltip.h"
 #include "SharedResources.h"
+#include "Settings.h"
 #include "Utils.h"
+
+using namespace std;
+
 
 WidgetTooltip::WidgetTooltip() {
 
@@ -66,19 +70,22 @@ Point WidgetTooltip::calcPosition(int style, Point pos, Point size) {
 		}
 		// lower right
 		else if (pos.x >= VIEW_W_HALF && pos.y >= VIEW_H_HALF) {
-			tip_pos.x = pos.x - offset - size.x;		
-			tip_pos.y = pos.y - offset - size.y;		
+			tip_pos.x = pos.x - offset - size.x;
+			tip_pos.y = pos.y - offset - size.y;
 		}
 	}
 	
 	return tip_pos;
-} 
+}
 
 /**
  * Tooltip position depends on the screen quadrant of the source.
  * Draw the buffered tooltip if it exists, else render the tooltip and buffer it
  */
-void WidgetTooltip::render(TooltipData &tip, Point pos, int style) {
+void WidgetTooltip::render(TooltipData &tip, Point pos, int style, SDL_Surface *target) {
+	if (target == NULL) {
+		target = screen;
+	}
 
 	if (tip.tip_buffer == NULL) {
 		createBuffer(tip);
@@ -94,22 +101,7 @@ void WidgetTooltip::render(TooltipData &tip, Point pos, int style) {
 	dest.x = tip_pos.x;
 	dest.y = tip_pos.y;
 	
-	SDL_BlitSurface(tip.tip_buffer, NULL, screen, &dest);
-}
-
-/**
- * Clear the given tooltip.
- * Free the buffered tip image
- * Note most tooltip usage will assume WHITE default color, so reset it
- */
-void WidgetTooltip::clear(TooltipData &tip) {
-	tip.num_lines = 0;
-	for (int i=0; i<TOOLTIP_MAX_LINES; i++) {
-		tip.lines[i] = "";
-		tip.colors[i] = FONT_WHITE;
-	}
-	SDL_FreeSurface(tip.tip_buffer);
-	tip.tip_buffer = NULL;
+	SDL_BlitSurface(tip.tip_buffer, NULL, target, &dest);
 }
 
 /**

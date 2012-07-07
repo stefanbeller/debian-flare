@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -24,35 +24,50 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef TILE_SET_H
 #define TILE_SET_H
 
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <SDL.h>
-#include <SDL_image.h>
 #include "Utils.h"
 
-using namespace std;
+#include <SDL.h>
+#include <SDL_image.h>
+
+#include <string>
+
+const int TILE_SET_MAX_TILES = 1024;
+const int MAX_TILE_FRAMES = 64;
 
 struct Tile_Def {
 	SDL_Rect src;
 	Point offset;
 };
 
+struct Tile_Anim {
+	Point pos[MAX_TILE_FRAMES];
+	int frames;
+	int current_frame;
+	int duration;
+	int frame_duration[MAX_TILE_FRAMES];
+};
+
 class TileSet {
 private:
-	void loadGraphics(string filename);
-	int alpha_background;
-	string current_map;
+	void loadGraphics(const std::string& filename);
+	void reset();
+
+	Uint8 trans_r;
+	Uint8 trans_g;
+	Uint8 trans_b;
+	bool alpha_background;
+	std::string current_map;
+
 public:
 	// functions
 	TileSet();
 	~TileSet();
-	void load(string filename);
+	void load(const std::string& filename);
+	void logic();
 	
-	Tile_Def tiles[1024];
+	Tile_Def tiles[TILE_SET_MAX_TILES];
+	Tile_Anim anim[TILE_SET_MAX_TILES];
 	SDL_Surface *sprites;
-
-
 };
 
 #endif

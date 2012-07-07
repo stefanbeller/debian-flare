@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -16,13 +16,17 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 */
 
 #include "UtilsParsing.h"
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+
 using namespace std;
 
 /**
  * Check to see if this string represents an integer
  * The first character can be a negative (-) sign.
  */
-bool isInt(string s) {
+bool isInt(const string& s) {
 	if (s == "") return false;
 
 	int start=0;
@@ -49,7 +53,7 @@ unsigned short xtoi(char c) {
 /**
  * Convert two-char hex string to int 0-255
  */
-unsigned short xtoi(string hex) {
+unsigned short xtoi(const string& hex) {
 
 	char c0 = hex.at(0);
 	char c1 = hex.at(1);
@@ -100,7 +104,7 @@ char btox(bool b1, bool b2, bool b3, bool b4) {
 /**
  * trim: remove leading and trailing c from s
  */
-string trim(string s, char c) {
+string trim(const string& s, char c) {
 	if (s.length() == 0) return "";
 	
 	unsigned int first = 0;
@@ -116,13 +120,13 @@ string trim(string s, char c) {
 	return "";
 }
 
-string parse_section_title(string s) {
+string parse_section_title(const string& s) {
 	size_t bracket = s.find_first_of(']');
 	if (bracket == string::npos) return ""; // not found
 	return s.substr(1, bracket-1);
 }
 
-void parse_key_pair(string s, string &key, string &val) {
+void parse_key_pair(const string& s, string &key, string &val) {
 	size_t separator = s.find_first_of('=');
 	if (separator == string::npos) {
 		key = "";
@@ -172,7 +176,7 @@ string eatFirstString(string &s, char separator) {
 }
 
 // similar to eatFirstString but does not alter the input string
-string getNextToken(string s, size_t &cursor, char separator) {
+string getNextToken(const string& s, size_t &cursor, char separator) {
 	size_t seppos = s.find_first_of(separator, cursor);
 	if (seppos == string::npos) { // not found
 		cursor = string::npos;
@@ -184,7 +188,7 @@ string getNextToken(string s, size_t &cursor, char separator) {
 }
 
 // strip carriage return if exists
-string stripCarriageReturn(string line) {
+string stripCarriageReturn(const string& line) {
 	if (line.length() > 0) {
 		if ('\r' == line.at(line.length()-1)) {
 			return line.substr(0, line.length()-1);
@@ -195,8 +199,53 @@ string stripCarriageReturn(string line) {
 
 string getLine(ifstream &infile) {
 	string line;
-	getline(infile, line);
+	// This is the standard way to check whether a read failed.
+	if (!getline(infile, line))
+		return "";
 	line = stripCarriageReturn(line);
 	return line; 
 }
 
+bool tryParseValue(const type_info & type, const char * value, void * output) {
+	return tryParseValue(type, string(value), output);
+}
+
+bool tryParseValue(const type_info & type, const std::string & value, void * output) {
+
+	stringstream stream(value);
+
+	// TODO: add additional type parsing
+	if (type == typeid(bool)) {
+		stream>>(bool&)*((bool*)output);
+	} else if (type == typeid(int)) {
+		stream>>(int&)*((int*)output);
+	} else if (type == typeid(float)) {
+		stream>>(float&)*((float*)output);
+	} else if (type == typeid(std::string)) {
+		*((string *)output) = value;
+	} else {
+		return false;
+	}
+
+	return !stream.fail();
+}
+
+std::string toString(const type_info & type, void * value) {
+
+	stringstream stream;
+
+	// TODO: add additional type parsing
+	if (type == typeid(bool)) {
+		stream<<*((bool*)value);
+	} else if (type == typeid(int)) {
+		stream<<*((int*)value);
+	} else if (type == typeid(float)) {
+		stream<<*((float*)value);
+	} else if (type == typeid(std::string)) {
+		return (string &)*((string *)value);
+	} else {
+		return "";
+	}
+
+	return stream.str();
+}

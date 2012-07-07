@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -20,8 +20,16 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  */
 
 #include "NPC.h"
+#include "CampaignManager.h"
 #include "FileParser.h"
+#include "ItemManager.h"
 #include "SharedResources.h"
+
+
+#include <sstream>
+
+using namespace std;
+
 
 NPC::NPC(MapIso *_map, ItemManager *_items) : Entity(_map) {
 	items = _items;
@@ -29,7 +37,7 @@ NPC::NPC(MapIso *_map, ItemManager *_items) : Entity(_map) {
 	// init general vars
 	name = "";
 	pos.x = pos.y = 0;
-	
+
 	// init animation info
 	sprites = NULL;
 	render_size.x = render_size.y = 0;
@@ -37,14 +45,14 @@ NPC::NPC(MapIso *_map, ItemManager *_items) : Entity(_map) {
 	anim_frames = 0;
 	anim_duration = 0;
 	current_frame = 0;
-	
+
 	// init vendor info
 	vendor = false;
 	stock.init(NPC_VENDOR_MAX_STOCK, _items);
 	stock_count = 0;
 	random_stock = 0;
 	vox_intro_count = 0;
-	
+
 	for (int i=0; i<NPC_MAX_VOX; i++) {
 		vox_intro[i] = NULL;
 	}
@@ -70,12 +78,12 @@ NPC::NPC(MapIso *_map, ItemManager *_items) : Entity(_map) {
  *
  * @param npc_id Config file loaded at npcs/[npc_id].txt
  */
-void NPC::load(string npc_id) {
+void NPC::load(const string& npc_id) {
 
 	FileParser infile;
 	ItemStack stack;
 	int event_count = 0;
-	
+
 	string filename_sprites = "";
 	string filename_portrait = "";
 
@@ -86,9 +94,9 @@ void NPC::load(string npc_id) {
 					dialog_count++;
 					event_count = 0;
 				}
-			
+
 				// here we use dialog_count-1 because we've already incremented the dialog count but the array is 0 based
-			
+
 				dialog[dialog_count-1][event_count].type = infile.key;
 				if (infile.key == "requires_status")
 					dialog[dialog_count-1][event_count].s = infile.val;
@@ -115,7 +123,7 @@ void NPC::load(string npc_id) {
 					dialog[dialog_count-1][event_count].s = infile.val;
 				else if (infile.key == "unset_status")
 					dialog[dialog_count-1][event_count].s = infile.val;
-				
+
 				event_count++;
 			}
 			else {
@@ -165,7 +173,7 @@ void NPC::load(string npc_id) {
 				else if (infile.key == "random_stock") {
 					random_stock = atoi(infile.val.c_str());
 				}
-				
+
 				// handle vocals
 				else if (infile.key == "vox_intro") {
 					loadSound(infile.val, NPC_VOX_INTRO);
@@ -177,7 +185,7 @@ void NPC::load(string npc_id) {
 	loadGraphics(filename_sprites, filename_portrait);
 }
 
-void NPC::loadGraphics(string filename_sprites, string filename_portrait) {
+void NPC::loadGraphics(const string& filename_sprites, const string& filename_portrait) {
 
 	if (filename_sprites != "") {
 		sprites = IMG_Load(mods->locate("images/npcs/" + filename_sprites + ".png").c_str());
@@ -186,7 +194,7 @@ void NPC::loadGraphics(string filename_sprites, string filename_portrait) {
 		}
 		else {
 			SDL_SetColorKey( sprites, SDL_SRCCOLORKEY, SDL_MapRGB(sprites->format, 255, 0, 255) );
-	
+
 			// optimize
 			SDL_Surface *cleanup = sprites;
 			sprites = SDL_DisplayFormatAlpha(sprites);
@@ -198,33 +206,35 @@ void NPC::loadGraphics(string filename_sprites, string filename_portrait) {
 		if(!portrait) {
 			fprintf(stderr, "Couldn't load NPC portrait: %s\n", IMG_GetError());
 		}
-	
+
 		SDL_SetColorKey( portrait, SDL_SRCCOLORKEY, SDL_MapRGB(portrait->format, 255, 0, 255) );
-	
+
 		// optimize
 		SDL_Surface *cleanup = portrait;
 		portrait = SDL_DisplayFormatAlpha(portrait);
 		SDL_FreeSurface(cleanup);
 	}
-	
+
 }
 
 /**
  * filename assumes the file is in soundfx/npcs/
  * type is a const int enum, see NPC.h
  */
-void NPC::loadSound(string filename, int type) {
+void NPC::loadSound(const string& filename, int type) {
 
-	if (type == NPC_VOX_INTRO) {
-	
-		// if too many already loaded, skip this one
-		if (vox_intro_count == NPC_MAX_VOX) return;
-		vox_intro[vox_intro_count] = Mix_LoadWAV(mods->locate("soundfx/npcs/" + filename).c_str());
-		
-		if (vox_intro[vox_intro_count])
-			vox_intro_count++;
-	}
+    if (type == NPC_VOX_INTRO) {
 
+        // if too many already loaded, skip this one
+        if (vox_intro_count == NPC_MAX_VOX) return;
+        if (audio == true)
+            vox_intro[vox_intro_count] = Mix_LoadWAV(mods->locate("soundfx/npcs/" + filename).c_str());
+        else
+            vox_intro[vox_intro_count] = NULL;
+
+        if (vox_intro[vox_intro_count])
+            vox_intro_count++;
+    }
 }
 
 void NPC::logic() {
@@ -245,7 +255,8 @@ bool NPC::playSound(int type) {
 	if (type == NPC_VOX_INTRO) {
 		if (vox_intro_count == 0) return false;
 		roll = rand() % vox_intro_count;
-		Mix_PlayChannel(-1, vox_intro[roll], 0);
+        if (vox_intro[roll])
+            Mix_PlayChannel(-1, vox_intro[roll], 0);
 		return true;
 	}
 	return false;
@@ -261,14 +272,14 @@ int NPC::chooseDialogNode() {
 	// NPC dialog nodes are listed in timeline order
 	// So check from the bottom of the list up
 	// First node we reach that meets requirements is the correct node
-	
+
 	for (int i=dialog_count-1; i>=0; i--) {
 		for (int j=0; j<NPC_MAX_EVENTS; j++) {
-			
+
 			// check requirements
 			// break (skip to next dialog node) if any requirement fails
 			// if we reach an event that is not a requirement, succeed
-			
+
 			if (dialog[i][j].type == "requires_status") {
 				if (!map->camp->checkStatus(dialog[i][j].s)) break;
 			}
@@ -296,9 +307,9 @@ bool NPC::processDialog(int dialog_node, int &event_cursor) {
 
 	stringstream ss;
 	ss.str("");
-	
+
 	while (event_cursor < NPC_MAX_EVENTS) {
-	
+
 		// we've already determined requirements are met, so skip these
 		if (dialog[dialog_node][event_cursor].type == "requires_status") {
 			// continue to next event component
@@ -307,7 +318,7 @@ bool NPC::processDialog(int dialog_node, int &event_cursor) {
 			// continue to next event component
 		}
 		else if (dialog[dialog_node][event_cursor].type == "requires_item") {
-			// continue to next event component	
+			// continue to next event component
 		}
 		else if (dialog[dialog_node][event_cursor].type == "set_status") {
 			map->camp->setStatus(dialog[dialog_node][event_cursor].s);
@@ -343,7 +354,7 @@ bool NPC::processDialog(int dialog_node, int &event_cursor) {
 			// conversation ends
 			return false;
 		}
-		
+
 		event_cursor++;
 	}
 	return false;
@@ -375,6 +386,7 @@ NPC::~NPC() {
 	if (sprites != NULL) SDL_FreeSurface(sprites);
 	if (portrait != NULL) SDL_FreeSurface(portrait);
 	for (int i=0; i<NPC_MAX_VOX; i++) {
-		Mix_FreeChunk(vox_intro[i]);
+        if (vox_intro[i])
+            Mix_FreeChunk(vox_intro[i]);
 	}
 }
