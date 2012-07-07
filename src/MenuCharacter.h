@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -25,16 +25,15 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
-#include "Utils.h"
-#include "FontEngine.h"
-#include "StatBlock.h"
+
 #include "WidgetTooltip.h"
-#include "InputState.h"
-#include "WidgetButton.h"
-#include "SharedResources.h"
-#include "WidgetLabel.h"
+
 #include <string>
 #include <sstream>
+
+class StatBlock;
+class WidgetButton;
+class WidgetLabel;
 
 const int CSTAT_NAME = 0;
 const int CSTAT_LEVEL = 1;
@@ -56,7 +55,8 @@ const int CSTAT_CRIT = 16;
 const int CSTAT_ABSORB = 17;
 const int CSTAT_FIRERESIST = 18;
 const int CSTAT_ICERESIST = 19;
-const int CSTAT_COUNT = 20;
+const int CSTAT_UNSPENT = 20;
+const int CSTAT_COUNT = 21;
 
 const int CPROF_P2 = 0;
 const int CPROF_P3 = 1;
@@ -117,6 +117,7 @@ private:
 	void displayProficiencies(int value, int y);
 	void loadGraphics();
 	int bonusColor(int stat);
+	int skill_points;
 	
 public:
 	MenuCharacter(StatBlock *stats);

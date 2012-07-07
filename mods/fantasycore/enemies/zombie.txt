@@ -1,6 +1,7 @@
 name=Zombie
 level=2
 categories=zombie,undead,dungeon
+xp=2
 
 sfx_prefix=zombie
 gfx_prefix=zombie
@@ -14,10 +15,10 @@ speed=6
 dspeed=4
 melee_range=72
 threat_range=512
-dir_favor=12
+turn_delay=10
 chance_pursue=10
-chance_melee_phys=5
-chance_melee_ment=10
+chance_melee_phys=2
+chance_melee_ment=3
 chance_ranged_phys=0
 chance_ranged_ment=0
 power_melee_phys=1
@@ -27,10 +28,10 @@ power_beacon=132
 accuracy=75
 avoidance=25
 
-dmg_melee_min=2
-dmg_melee_max=6
-dmg_ment_min=4
-dmg_ment_max=10
+dmg_melee_min=1
+dmg_melee_max=5
+dmg_ment_min=3
+dmg_ment_max=6
 cooldown=20
 
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -30,31 +30,32 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 
 #include "GameSwitcher.h"
 #include "GameStateTitle.h"
-#include "GameStateLoad.h"
 #include "SharedResources.h"
+#include "Settings.h"
 
 GameSwitcher::GameSwitcher() {
 
 	// The initial state is the title screen
 	currentState = new GameStateTitle();
-	
+
 	done = false;
 	music = NULL;
 	loadMusic();
-	
+
 }
 
 void GameSwitcher::loadMusic() {
 
-	music = Mix_LoadMUS((mods->locate("music/title_theme.ogg")).c_str());
-	if (!music) {
-	  printf("Mix_LoadMUS: %s\n", Mix_GetError());
-	  SDL_Quit();
-	}
+    if (audio == true) {
+        music = Mix_LoadMUS((mods->locate("music/title_theme.ogg")).c_str());
+        if (!music)
+          printf("Mix_LoadMUS: %s\n", Mix_GetError());
+    }
 
-	Mix_VolumeMusic(MUSIC_VOLUME);
-	Mix_PlayMusic(music, -1);
-	
+    if (music) {
+        Mix_VolumeMusic(MUSIC_VOLUME);
+        Mix_PlayMusic(music, -1);
+    }
 }
 
 void GameSwitcher::logic() {
@@ -66,16 +67,16 @@ void GameSwitcher::logic() {
 		GameState* newState = currentState->getRequestedGameState();
 
 		delete currentState;
-	
+
 		currentState = newState;
-		
+
 		// if this game state does not provide music, use the title theme
-		if (!currentState->hasMusic) {
-			if (!Mix_PlayingMusic()) {
-				Mix_PlayMusic(music, -1);
-			}
-		}
-		
+        if (!currentState->hasMusic) {
+            if (!Mix_PlayingMusic()) {
+                if (music)
+                    Mix_PlayMusic(music, -1);
+            }
+        }
 	}
 
 	currentState->logic();
@@ -90,6 +91,7 @@ void GameSwitcher::render() {
 
 GameSwitcher::~GameSwitcher() {
 	delete currentState;
-	Mix_FreeMusic(music);
+    if (music)
+        Mix_FreeMusic(music);
 }
 

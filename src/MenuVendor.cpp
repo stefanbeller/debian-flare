@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -20,8 +20,9 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  */
 
 #include "MenuVendor.h"
+#include "NPC.h"
 #include "SharedResources.h"
-#include "WidgetLabel.h"
+#include "WidgetButton.h"
 
 using namespace std;
 
@@ -40,6 +41,7 @@ MenuVendor::MenuVendor(ItemManager *_items, StatBlock *_stats) {
 	stock.init( VENDOR_SLOTS, items, slots_area, ICON_SIZE_32, 8);
 
 	visible = false;
+	talker_visible = false;
 	loadGraphics();
 
 	closeButton = new WidgetButton(mods->locate("images/menus/buttons/button_x.png"));

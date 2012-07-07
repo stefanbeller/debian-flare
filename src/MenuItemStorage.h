@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,10 +22,12 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef MENU_ITEM_STORAGE_H
 #define MENU_ITEM_STORAGE_H
 
-#include <SDL.h>
+#include "ItemManager.h"
 #include "ItemStorage.h"
+#include <SDL.h>
 
-using namespace std;
+class InputState;
+class TooltipData;
 
 class MenuItemStorage : public ItemStorage {
 protected:

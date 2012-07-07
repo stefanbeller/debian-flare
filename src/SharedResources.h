@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -36,7 +36,10 @@ Created and destroyed by main.cpp
 extern SDL_Surface *screen;
 extern ModManager *mods;
 extern MessageEngine *msg;
-extern InputState *inp;
+extern InputState *inpt;
 extern FontEngine *font;
+
+extern bool audio;
+extern SDL_Joystick *joy;
 
 #endif

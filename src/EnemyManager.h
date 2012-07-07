@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -31,18 +31,19 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 // TODO: rename these to something more specific to EnemyManager
 const int max_sfx = 8;
 const int max_gfx = 32;
+const int MAX_ENEMIES_PER_MAP = 256;
 
 class EnemyManager {
 private:
 
 	MapIso *map;
 	PowerManager *powers;
-	void loadGraphics(string type_id);
-	void loadSounds(string type_id);
+	void loadGraphics(const std::string& type_id);
+	void loadSounds(const std::string& type_id);
 
-	string gfx_prefixes[max_gfx];
+	std::string gfx_prefixes[max_gfx];
 	int gfx_count;
-	string sfx_prefixes[max_sfx];
+	std::string sfx_prefixes[max_sfx];
 	int sfx_count;
 	
 	SDL_Surface *sprites[max_gfx];	
@@ -56,13 +57,14 @@ public:
 	EnemyManager(PowerManager *_powers, MapIso *_map);
 	~EnemyManager();
 	void handleNewMap();
+	void handleSpawn();
 	void logic();
 	Renderable getRender(int enemyIndex);
 	void checkEnemiesforXP(StatBlock *stats);
 	Enemy *enemyFocus(Point mouse, Point cam, bool alive_only);
 
 	// vars
-	Enemy *enemies[256]; // TODO: change to dynamic list without limits
+	Enemy *enemies[MAX_ENEMIES_PER_MAP]; // TODO: change to dynamic list without limits
 	Point hero_pos;
 	bool hero_alive;
 	int enemy_count;

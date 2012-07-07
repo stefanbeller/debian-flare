@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -25,15 +25,7 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef GAMESTATENEW_H
 #define GAMESTATENEW_H
 
-#include "InputState.h"
-#include "FontEngine.h"
-#include "WidgetButton.h"
-#include "WidgetInput.h"
-#include "FileParser.h"
-#include "Settings.h"
 #include "GameState.h"
-#include "UtilsParsing.h"
-#include "SharedResources.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -42,7 +34,9 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include <string>
 #include <sstream>
 
-
+class WidgetButton;
+class WidgetCheckBox;
+class WidgetInput;
 class WidgetLabel;
 
 
@@ -52,12 +46,12 @@ class GameStateNew : public GameState {
 private:
 
 	void loadGraphics();
-	void loadPortrait(string portrait_filename);
-	void loadOptions(string option_filename);
+	void loadPortrait(const std::string& portrait_filename);
+	void loadOptions(const std::string& option_filename);
 
-	string base[PLAYER_OPTION_MAX];
-	string head[PLAYER_OPTION_MAX];
-	string portrait[PLAYER_OPTION_MAX];
+	std::string base[PLAYER_OPTION_MAX];
+	std::string head[PLAYER_OPTION_MAX];
+	std::string portrait[PLAYER_OPTION_MAX];
 	int option_count;
 	int current_option;
 
@@ -70,6 +64,8 @@ private:
 	WidgetLabel *label_portrait;
 	WidgetLabel *label_name;
 	WidgetInput *input_name;
+	WidgetCheckBox *button_permadeath;
+	WidgetLabel *label_permadeath;
 
 public:
 	GameStateNew();

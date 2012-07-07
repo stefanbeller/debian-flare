@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger and kitano
+Copyright © 2011-2012 Clint Bellanger and kitano
 
 This file is part of FLARE.
 
@@ -22,9 +22,15 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  * This base class handles logic common to all of these child classes
  */
 
+#include "Animation.h"
 #include "Entity.h"
 #include "FileParser.h"
 #include "SharedResources.h"
+#include "UtilsParsing.h"
+
+#include <iostream>
+
+using namespace std;
 
 Entity::Entity(MapIso* _map) : sprites(NULL), activeAnimation(NULL), map(_map) {
 }
@@ -36,11 +42,15 @@ Entity::Entity(MapIso* _map) : sprites(NULL), activeAnimation(NULL), map(_map) {
  * @return Returns false if wall collision, otherwise true.
  */
 bool Entity::move() {
+
+	if (stats.forced_move_duration > 0) {
+		return map->collider.move(stats.pos.x, stats.pos.y, stats.forced_speed.x, stats.forced_speed.y, 1, stats.movement_type);
+	}
 	if (stats.immobilize_duration > 0) return false;
 
 	int speed_diagonal = stats.dspeed;
 	int speed_straight = stats.speed;
-	
+
 	if (stats.slow_duration > 0) {
 		speed_diagonal /= 2;
 		speed_straight /= 2;
@@ -49,26 +59,37 @@ bool Entity::move() {
 		speed_diagonal *= 2;
 		speed_straight *= 2;
 	}
+
+	bool full_move;
 	
 	switch (stats.direction) {
 		case 0:
-			return map->collider.move(stats.pos.x, stats.pos.y, -1, 1, speed_diagonal);
+			full_move = map->collider.move(stats.pos.x, stats.pos.y, -1, 1, speed_diagonal, stats.movement_type);
+			break;
 		case 1:
-			return map->collider.move(stats.pos.x, stats.pos.y, -1, 0, speed_straight);
+			full_move =  map->collider.move(stats.pos.x, stats.pos.y, -1, 0, speed_straight, stats.movement_type);
+			break;
 		case 2:
-			return map->collider.move(stats.pos.x, stats.pos.y, -1, -1, speed_diagonal);
+			full_move =  map->collider.move(stats.pos.x, stats.pos.y, -1, -1, speed_diagonal, stats.movement_type);
+			break;
 		case 3:
-			return map->collider.move(stats.pos.x, stats.pos.y, 0, -1, speed_straight);
+			full_move =  map->collider.move(stats.pos.x, stats.pos.y, 0, -1, speed_straight, stats.movement_type);
+			break;
 		case 4:
-			return map->collider.move(stats.pos.x, stats.pos.y, 1, -1, speed_diagonal);
+			full_move =  map->collider.move(stats.pos.x, stats.pos.y, 1, -1, speed_diagonal, stats.movement_type);
+			break;
 		case 5:
-			return map->collider.move(stats.pos.x, stats.pos.y, 1, 0, speed_straight);
+			full_move =  map->collider.move(stats.pos.x, stats.pos.y, 1, 0, speed_straight, stats.movement_type);
+			break;
 		case 6:
-			return map->collider.move(stats.pos.x, stats.pos.y, 1, 1, speed_diagonal);
+			full_move =  map->collider.move(stats.pos.x, stats.pos.y, 1, 1, speed_diagonal, stats.movement_type);
+			break;
 		case 7:
-			return map->collider.move(stats.pos.x, stats.pos.y, 0, 1, speed_straight);
+			full_move =  map->collider.move(stats.pos.x, stats.pos.y, 0, 1, speed_straight, stats.movement_type);
+			break;
 	}
-	return true;
+
+	return full_move;
 }
 
 /**
@@ -84,7 +105,7 @@ int Entity::face(int mapx, int mapy) {
 		if (dy > 0) return 3;
 		else return 7;
 	}
-	
+
 	float slope = ((float)dy)/((float)dx);
 	if (0.5 <= slope && slope <= 2.0) {
 		if (dy > 0) return 4;
@@ -104,11 +125,13 @@ int Entity::face(int mapx, int mapy) {
 	}
 	return stats.direction;
 }
-  
+
 /**
  * Load the entity's animation from animation definition file
  */
-void Entity::loadAnimations(const std::string& filename) {
+void Entity::loadAnimations(const string& filename) {
+
+	if (animations.size() > 0) animations.clear();
 
 	FileParser parser;
 
@@ -118,14 +141,15 @@ void Entity::loadAnimations(const std::string& filename) {
 		exit(1);
 	}
 
-	std::string name = "";
+	string name = "";
 	int position = 0;
 	int frames = 0;
 	int duration = 0;
 	Point render_size;
 	Point render_offset;
-	std::string type = "";
-	std::string firstAnimation = "";
+	string type = "";
+	string firstAnimation = "";
+	int active_frame = 0;
 
 	// Parse the file and on each new section create an animation object from the data parsed previously
 
@@ -135,32 +159,32 @@ void Entity::loadAnimations(const std::string& filename) {
 	do {
 		// create the animation if finished parsing a section
 		if (parser.new_section) {
-			animations.push_back(new Animation(name, render_size, render_offset,  position, frames, duration, type));
+			animations.push_back(new Animation(name, render_size, render_offset,  position, frames, duration, type, active_frame));
 		}
 
 		if (parser.key == "position") {
 			if (isInt(parser.val)) {
 				position = atoi(parser.val.c_str());
 			}
-		}	
+		}
 		else if (parser.key == "frames") {
 			if (isInt(parser.val)) {
 				frames = atoi(parser.val.c_str());
 			}
-		}	
+		}
 		else if (parser.key == "duration") {
 			if (isInt(parser.val)) {
 				int ms_per_frame = atoi(parser.val.c_str());
-				
+
 				duration = (int)round((float)ms_per_frame / (1000.0 / (float)FRAMES_PER_SEC));
 
 				// adjust duration according to the entity's animation speed
 				duration = (duration * 100) / stats.animationSpeed;
-				
+
 				// TEMP: if an animation is too fast, display one frame per fps anyway
 				if (duration < 1) duration=1;
 			}
-		}	
+		}
 		else if (parser.key == "type") {
 			type = parser.val;
 		}
@@ -168,22 +192,25 @@ void Entity::loadAnimations(const std::string& filename) {
 			if (isInt(parser.val)) {
 				render_size.x = atoi(parser.val.c_str());
 			}
-		}	
+		}
 		else if (parser.key == "render_size_y") {
 			if (isInt(parser.val)) {
 				render_size.y = atoi(parser.val.c_str());
 			}
-		}	
+		}
 		else if (parser.key == "render_offset_x") {
 			if (isInt(parser.val)) {
 				render_offset.x = atoi(parser.val.c_str());
 			}
-		}	
+		}
 		else if (parser.key == "render_offset_y") {
 			if (isInt(parser.val)) {
 				render_offset.y = atoi(parser.val.c_str());
 			}
-		}	
+		}
+		else if (parser.key == "active_frame") {
+			active_frame = atoi(parser.val.c_str());
+		}
 
 		if (name == "") {
 			// This is the first animation
@@ -194,7 +221,7 @@ void Entity::loadAnimations(const std::string& filename) {
 	while (parser.next());
 
 	// add final animation
-	animations.push_back(new Animation(name, render_size, render_offset, position, frames, duration, type));
+	animations.push_back(new Animation(name, render_size, render_offset, position, frames, duration, type, active_frame));
 
 
 	// set the default animation
@@ -206,7 +233,7 @@ void Entity::loadAnimations(const std::string& filename) {
 /**
  * Set the entity's current animation by name
 */
-bool Entity::setAnimation(const std::string& animationName) {
+bool Entity::setAnimation(const string& animationName) {
 
 	// if the animation is already the requested one do nothing
 	if (activeAnimation != NULL && activeAnimation->getName() == animationName) {
@@ -230,8 +257,8 @@ Entity::~Entity () {
 	// delete all loaded animations
 	for (vector<Animation*>::const_iterator it = animations.begin(); it != animations.end(); it++)
 	{
-	    delete *it;
-	} 
+		delete *it;
+	}
 	animations.clear();
 }
 

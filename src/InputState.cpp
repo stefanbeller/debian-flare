@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -21,8 +21,13 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  * Handles keyboard and mouse states
  */
 
+#include <iostream>
+
+#include "FileParser.h"
 #include "InputState.h"
 #include "Settings.h"
+#include "UtilsDebug.h"
+#include "UtilsParsing.h"
 
 using namespace std;
 
@@ -30,6 +35,25 @@ InputState::InputState(void) {
 
 	SDL_EnableUNICODE(true);
 
+	defaultQwertyKeyBindings();
+	
+	for (int key=0; key<key_count; key++) {
+		pressing[key] = false;
+		lock[key] = false;
+	}
+	for (int key=0; key<joy_key_count; key++) {
+		joy_binding[key] = key;
+		joy_pressing[key] = false;
+	}
+	done = false;
+	
+	loadKeyBindings();
+	
+}
+
+
+void InputState::defaultQwertyKeyBindings ()
+{
 	binding[CANCEL] = SDLK_ESCAPE;
 	binding[ACCEPT] = SDLK_RETURN;
 	binding[UP] = SDLK_w;
@@ -69,33 +93,20 @@ InputState::InputState(void) {
 	binding_alt[SHIFT] = SDLK_RSHIFT;
 	binding[DEL] = SDLK_DELETE;
 	binding_alt[DEL] = SDLK_BACKSPACE;
-	
-	for (int key=0; key<key_count; key++) {
-		pressing[key] = false;
-		lock[key] = false;
-	}
-	done = false;
-	
-	loadKeyBindings();
-	
-	// Optionally ignore the Joystick subsystem
-	if (!ENABLE_JOYSTICK) {
-		SDL_JoystickEventState(SDL_IGNORE);
-		SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
-	}
 }
+
 
 /**
  * Key bindings are found in config/keybindings.txt
  */
 void InputState::loadKeyBindings() {
 
-	FileParser infile;	
+	FileParser infile;
 	int key1;
 	int key2;
 	int cursor;
 
-	if (!infile.open(PATH_CONF + "keybindings.txt")) {
+	if (!infile.open(PATH_CONF + FILE_KEYBINDINGS)) {
 		saveKeyBindings();
 		return;
 	}
@@ -147,7 +158,7 @@ void InputState::loadKeyBindings() {
  */
 void InputState::saveKeyBindings() {
 	ofstream outfile;
-	outfile.open((PATH_CONF + "keybindings.txt").c_str(), ios::out);
+	outfile.open((PATH_CONF + FILE_KEYBINDINGS).c_str(), ios::out);
 
 	if (outfile.is_open()) {
 	
@@ -182,7 +193,7 @@ void InputState::saveKeyBindings() {
 
 }
 
-void InputState::handle() {
+void InputState::handle(bool dump_event) {
 	SDL_Event event;
 
 	SDL_GetMouseState(&mouse.x, &mouse.y);
@@ -198,6 +209,10 @@ void InputState::handle() {
 
 	/* Check for events */
 	while (SDL_PollEvent (&event)) {
+
+		if (dump_event) {
+			cout << event << endl;
+		}
 
 		// grab symbol keys
 		if (event.type == SDL_KEYDOWN) {
@@ -231,6 +246,7 @@ void InputState::handle() {
 						lock[key] = false;
 					}
 				}
+				last_button = event.button.button;
 				break;
 			case SDL_KEYDOWN:
 				for (int key=0; key<key_count; key++) {
@@ -246,9 +262,10 @@ void InputState::handle() {
 						lock[key] = false;
 					}
 				}
+				last_key = event.key.keysym.sym;
 				break;
 			case SDL_JOYAXISMOTION:
-				if(JOYSTICK_DEVICE == event.jaxis.which)
+				if(JOYSTICK_DEVICE == event.jaxis.which && ENABLE_JOYSTICK)
 				{
 					switch(event.jaxis.axis) {
 						/* first analog */
@@ -424,7 +441,7 @@ void InputState::handle() {
 				break;
 
 			case SDL_JOYHATMOTION:
-				if(JOYSTICK_DEVICE == event.jhat.which)
+				if(JOYSTICK_DEVICE == event.jhat.which && ENABLE_JOYSTICK)
 				{
 					switch (event.jhat.value) {
 						case SDL_HAT_CENTERED:
@@ -509,22 +526,21 @@ void InputState::handle() {
 				}
 				break;
 			case SDL_JOYBUTTONDOWN:
-				if(JOYSTICK_DEVICE == event.jbutton.which)
+				if(JOYSTICK_DEVICE == event.jbutton.which && ENABLE_JOYSTICK)
 				{
-					for (int key=0; key<key_count; key++) {
-						if (event.jbutton.button == binding[key] || event.jbutton.button == binding_alt[key]) {
-							pressing[key] = true;
+					for (int key=0; key<joy_key_count; key++) {
+						if (event.jbutton.button == joy_binding[key]) {
+							joy_pressing[key] = true;
 						}
 					}
 				}
 				break;
 			case SDL_JOYBUTTONUP:
-				if(JOYSTICK_DEVICE == event.jbutton.which)
+				if(JOYSTICK_DEVICE == event.jbutton.which && ENABLE_JOYSTICK)
 				{
-					for (int key=0; key<key_count; key++) {
-						if (event.jbutton.button == binding[key] || event.jbutton.button == binding_alt[key]) {
-							pressing[key] = false;
-							lock[key] = false;
+					for (int key=0; key<joy_key_count; key++) {
+						if (event.jbutton.button == joy_binding[key]) {
+							joy_pressing[key] = false;
 						}
 					}
 				}
@@ -537,7 +553,7 @@ void InputState::handle() {
 		}
 	}
 
-		
+
 }
 
 InputState::~InputState() {

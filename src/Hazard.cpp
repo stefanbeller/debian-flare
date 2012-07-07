@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -23,6 +23,12 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  */
 
 #include "Hazard.h"
+#include "MapCollision.h"
+#include "Settings.h"
+
+using namespace std;
+
+
 Hazard::Hazard() {
 	src_stats = NULL;
 	sprites = NULL;
@@ -53,6 +59,8 @@ Hazard::Hazard() {
 	immobilize_duration=0;
 	slow_duration=0;
 	bleed_duration=0;
+	forced_move_speed=0;
+	forced_move_duration=0;
 	hp_steal=0;
 	mp_steal=0;
 	trait_armor_penetration = false;
@@ -110,5 +118,5 @@ bool Hazard::hasEntity(Entity *ent)
 
 void Hazard::addEntity(Entity *ent)
 {
-  entitiesCollided.push_back(ent);
+	entitiesCollided.push_back(ent);
 }

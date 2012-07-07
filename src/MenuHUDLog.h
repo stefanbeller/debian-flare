@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,9 +22,7 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef MENU_HUD_LOG_H
 #define MENU_HUD_LOG_H
 
-#include "Settings.h"
 #include "Utils.h"
-#include "FontEngine.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -39,7 +37,7 @@ private:
 
 	int calcDuration(const std::string& s);
 
-	string log_msg[MAX_HUD_MESSAGES];
+	std::string log_msg[MAX_HUD_MESSAGES];
 	int msg_age[MAX_HUD_MESSAGES];
 	SDL_Surface *msg_buffer[MAX_HUD_MESSAGES];
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger and morris989
+Copyright © 2011-2012 Clint Bellanger and morris989
 
 This file is part of FLARE.
 
@@ -20,7 +20,14 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  */
 
 #include "MenuTalker.h"
+
+#include "NPC.h"
+#include "WidgetButton.h"
+
 #include "SharedResources.h"
+
+using namespace std;
+
 
 MenuTalker::MenuTalker(CampaignManager *_camp) {
 	camp = _camp;
@@ -36,8 +43,16 @@ MenuTalker::MenuTalker(CampaignManager *_camp) {
 	closeButton = new WidgetButton(mods->locate("images/menus/buttons/button_x.png"));
 	closeButton->pos.x = VIEW_W_HALF + 288;
 	closeButton->pos.y = VIEW_H_HALF + 112;
-	
+
+	vendorButton = new WidgetButton(mods->locate("images/menus/buttons/button_default.png"));
+	vendorButton->pos.x = VIEW_W_HALF + 288 - vendorButton->pos.w;
+	vendorButton->pos.y = VIEW_H_HALF + 80;
+	vendorButton->label = msg->get("Trade");
+	vendorButton->refresh();
+
 	visible = false;
+	vendor_visible = false;
+	has_vendor_button = false;
 
 	// step through NPC dialog nodes
 	dialog_node = 0;
@@ -95,15 +110,19 @@ void MenuTalker::logic() {
 	
 	bool more;
 
+	if (has_vendor_button) {
+		if (vendorButton->checkClick())
+			vendor_visible = true;
+	}
 	if (advanceButton->checkClick() || closeButton->checkClick()) {
 		// button was clicked
 		event_cursor++;
 		more = npc->processDialog(dialog_node, event_cursor);
 	}
-	else if	(inp->pressing[ACCEPT] && accept_lock) {
+	else if	(inpt->pressing[ACCEPT] && accept_lock) {
 		return;
 	}
-	else if (!inp->pressing[ACCEPT]) {
+	else if (!inpt->pressing[ACCEPT]) {
 		accept_lock = false;
 		return;
 	}
@@ -201,9 +220,13 @@ void MenuTalker::render() {
 	else {
 		closeButton->render();
 	}
+
+	// show the vendor button if the npc is a vendor
+	if (has_vendor_button)
+		vendorButton->render();
 }
 
-void MenuTalker::setHero(string name, string portrait_filename) {
+void MenuTalker::setHero(const string& name, const string& portrait_filename) {
 	hero_name = name;
 	
 	portrait = IMG_Load(mods->locate("images/portraits/" + portrait_filename + ".png").c_str());
@@ -226,4 +249,5 @@ MenuTalker::~MenuTalker() {
 	SDL_FreeSurface(portrait);
 	delete advanceButton;
 	delete closeButton;
+	delete vendorButton;
 }

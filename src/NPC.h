@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -23,16 +23,16 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #define NPC_H
 
 #include "Entity.h"
+#include "ItemStorage.h"
+#include "Utils.h"
+
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
 #include <string>
-#include "Utils.h"
-#include "ItemManager.h"
-#include "ItemStorage.h"
-#include "MapIso.h"
 
-using namespace std;
+class ItemManager;
+class MapIso;
 
 const int NPC_VENDOR_MAX_STOCK = 80;
 const int NPC_MAX_VOX = 8;
@@ -50,24 +50,24 @@ protected:
 	int anim_frames;
 	int anim_duration;
 	int current_frame;
-	
+
 public:
 	NPC(MapIso *_map, ItemManager *_items);
 	~NPC();
-	void load(string npc_id);
-	void loadGraphics(string filename_sprites, string filename_portrait);
-	void loadSound(string filename, int type);
+	void load(const std::string& npc_id);
+	void loadGraphics(const std::string& filename_sprites, const std::string& filename_portrait);
+	void loadSound(const std::string& filename, int type);
 	void logic();
 	bool playSound(int type);
 	int chooseDialogNode();
-	bool processDialog(int dialog_node, int &event_cursor);
+	bool processDialog(int dialog_node, int& event_cursor);
 	virtual Renderable getRender();
-	
+
 	// general info
-	string name;
+	std::string name;
 	Point pos; // map position
 	int level; // used in determining item quality
-	
+
 	// public animation info
 	Point render_size;
 	Point render_offset;
@@ -81,15 +81,15 @@ public:
 	ItemStorage stock;
 	int stock_count;
 	int random_stock;
-	
+
 	// vocals
 	Mix_Chunk *vox_intro[NPC_MAX_VOX];
 	int vox_intro_count;
-	
+
 	// story and dialog options
 	Event_Component dialog[NPC_MAX_DIALOG][NPC_MAX_EVENTS];
 	int dialog_count;
-	
+
 };
 
 #endif

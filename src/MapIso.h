@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -28,11 +28,7 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include "TileSet.h"
 #include "MapCollision.h"
 #include "Settings.h"
-#include "CampaignManager.h"
-#include "EnemyGroupManager.h"
 #include "WidgetTooltip.h"
-#include "PowerManager.h"
-#include "StatBlock.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -41,11 +37,14 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include <string>
 #include <queue>
 
+class CampaignManager;
+class PowerManager;
 
 struct Map_Enemy {
 	std::string type;
 	Point pos;
 	int direction;
+	std::queue<Point> waypoints;
 };
 
 struct Map_Group {
@@ -119,6 +118,8 @@ public:
 	void loadMusic();
 	void logic();
 	void render(Renderable r[], int rnum);
+	void renderIso(Renderable r[], int rnum);
+	void renderOrtho(Renderable r[], int rnum);
 	void checkEvents(Point loc);
 	void checkEventClick();
 	void clearEvents();

@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -19,18 +19,29 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  * class Enemy
  */
 
+#include "Animation.h"
+#include "CampaignManager.h"
+#include "CombatText.h"
 #include "Enemy.h"
+#include "EnemyBehavior.h"
+#include "Hazard.h"
+#include "PowerManager.h"
+#include <sstream>
+
+using namespace std;
+
 
 Enemy::Enemy(PowerManager *_powers, MapIso *_map) : Entity(_map) {
 	powers = _powers;
 
 	stats.cur_state = ENEMY_STANCE;
-	stats.dir_ticks = FRAMES_PER_SEC;
-	stats.patrol_ticks = 0;
+	stats.turn_ticks = FRAMES_PER_SEC;
+	//stats.patrol_ticks = 0; //no longer needed due to A*
 	stats.cooldown = 0;
 	stats.last_seen.x = -1;
 	stats.last_seen.y = -1;
 	stats.in_combat = false;
+    stats.join_combat = false;
 	
 	haz = NULL;
 	
@@ -41,6 +52,8 @@ Enemy::Enemy(PowerManager *_powers, MapIso *_map) : Entity(_map) {
 	sfx_critdie = false;
 	loot_drop = false;
 	reward_xp = false;
+
+	eb = NULL;
 }
 
 /**
@@ -102,375 +115,8 @@ void Enemy::newState(int state) {
  */
 void Enemy::logic() {
 
-	stats.logic();
-	if (stats.stun_duration > 0) return;
-	// check for bleeding to death
-	if (stats.hp <= 0 && !(stats.cur_state == ENEMY_DEAD || stats.cur_state == ENEMY_CRITDEAD)) {
-		doRewards();
-		stats.cur_state = ENEMY_DEAD;
-	}
-	// check for bleeding spurt
-	if (stats.bleed_duration % 30 == 1) {
-		powers->activate(POWER_SPARK_BLOOD, &stats, stats.pos);
-	}
-	
-	// check for teleport powers
-	if (stats.teleportation) {
-		
-		stats.pos.x = stats.teleport_destination.x;
-		stats.pos.y = stats.teleport_destination.y;	
-		
-		stats.teleportation = false;	
-	}
-	
-	int dist;
-	int prev_direction;
-	bool los = false;
-	Point pursue_pos;
-	
-	// set a default pursue_pos, all else failing (used in targeting)
-	pursue_pos.x = stats.hero_pos.x;
-	pursue_pos.y = stats.hero_pos.y;
-	
-	
-	// SECTION 1: Steering and Vision
-	// ------------------------------
-	
-	// check distance and line of sight between enemy and hero
-	if (stats.hero_alive)
-		dist = getDistance(stats.hero_pos);
-	else
-		dist = 0;
-	
-	// if the hero is too far away or dead, abandon combat and do nothing
-	if (dist > stats.threat_range+stats.threat_range || !stats.hero_alive) {
-		stats.in_combat = false;
-		stats.patrol_ticks = 0;
-		stats.last_seen.x = -1;
-		stats.last_seen.y = -1;
-		
-		// heal rapidly if the hero has left range
-		if (stats.alive && stats.hero_alive) {
-			stats.hp++;
-			if (stats.hp > stats.maxhp) stats.hp = stats.maxhp;
-		}
-	}
-
-	if (dist < stats.threat_range && stats.hero_alive)
-		los = map->collider.line_of_sight(stats.pos.x, stats.pos.y, stats.hero_pos.x, stats.hero_pos.y);
-	else
-		los = false;
-
-	// if the enemy can see the hero, it pursues.
-	// otherwise, it will head towards where it last saw the hero
-	if (los && dist < stats.threat_range) {
-		stats.in_combat = true;
-		stats.last_seen.x = stats.hero_pos.x;
-		stats.last_seen.y = stats.hero_pos.y;
-		powers->activate(stats.power_index[BEACON], &stats, stats.pos); //emit beacon
-	}
-	else if (stats.last_seen.x >= 0 && stats.last_seen.y >= 0) {
-		if (getDistance(stats.last_seen) <= (stats.speed+stats.speed) && stats.patrol_ticks == 0) {
-			stats.last_seen.x = -1;
-			stats.last_seen.y = -1;
-			stats.patrol_ticks = 8; // start patrol; see note on "patrolling" below
-		}		
-	}
-
-
-	// where is the creature heading?
-	// TODO: add fleeing for X ticks
-	if (los) {
-		pursue_pos.x = stats.last_seen.x = stats.hero_pos.x;
-		pursue_pos.y = stats.last_seen.y = stats.hero_pos.y;
-		stats.patrol_ticks = 0;
-	}
-	else if (stats.in_combat) {
-	
-		// "patrolling" is a simple way to help steering.
-		// When the enemy arrives at where he last saw the hero, it continues
-		// walking a few steps.  This gives a better chance of re-establishing
-		// line of sight around corners.
-		
-		if (stats.patrol_ticks > 0) {
-			stats.patrol_ticks--;
-			if (stats.patrol_ticks == 0) {
-				stats.in_combat = false;
-			}			
-		}
-		pursue_pos.x = stats.last_seen.x;
-		pursue_pos.y = stats.last_seen.y;
-	}
-
-	
-	// SECTION 2: States
-	// -----------------
-	
-	activeAnimation->advanceFrame();
-
-	switch(stats.cur_state) {
-	
-		case ENEMY_STANCE:
-		
-			setAnimation("stance");
-			
-			if (stats.in_combat) {
-
-				// update direction to face the target
-				if (++stats.dir_ticks > stats.dir_favor && stats.patrol_ticks == 0) {
-					stats.direction = face(pursue_pos.x, pursue_pos.y);				
-					stats.dir_ticks = 0;
-				}
-		
-				// performed ranged actions
-				if (dist > stats.melee_range && stats.cooldown_ticks == 0) {
-
-					// CHECK: ranged physical!
-					//if (!powers->powers[stats.power_index[RANGED_PHYS]].requires_los || los) {
-					if (los) {
-						if ((rand() % 100) < stats.power_chance[RANGED_PHYS] && stats.power_ticks[RANGED_PHYS] == 0) {
-							
-							newState(ENEMY_RANGED_PHYS);
-							break;
-						}
-					}
-					// CHECK: ranged spell!
-					//if (!powers->powers[stats.power_index[RANGED_MENT]].requires_los || los) {
-					if (los) {			
-						if ((rand() % 100) < stats.power_index[RANGED_MENT] && stats.power_ticks[RANGED_MENT] == 0) {
-							
-							newState(ENEMY_RANGED_MENT);
-							break;
-						}
-					}
-				
-					// CHECK: flee!
-					
-					// CHECK: pursue!
-					if ((rand() % 100) < stats.chance_pursue) {
-						if (move()) { // no collision
-							newState(ENEMY_MOVE);
-						}
-						else {
-							// hit an obstacle, try the next best angle
-							prev_direction = stats.direction;
-							stats.direction = faceNextBest(pursue_pos.x, pursue_pos.y);
-							if (move()) {
-								newState(ENEMY_MOVE);
-								break;
-							}
-							else stats.direction = prev_direction;
-						}
-					}
-					
-				}
-				// perform melee actions
-				else if (dist <= stats.melee_range && stats.cooldown_ticks == 0) {
-				
-					// CHECK: melee attack!
-					//if (!powers->powers[stats.power_index[MELEE_PHYS]].requires_los || los) {
-					if (los) {
-						if ((rand() % 100) < stats.power_chance[MELEE_PHYS] && stats.power_ticks[MELEE_PHYS] == 0) {
-							
-							newState(ENEMY_MELEE_PHYS);
-							break;
-						}
-					}
-					// CHECK: melee ment!
-					//if (!powers->powers[stats.power_index[MELEE_MENT]].requires_los || los) {
-					if (los) {
-						if ((rand() % 100) < stats.power_chance[MELEE_MENT] && stats.power_ticks[MELEE_MENT] == 0) {
-													
-							newState(ENEMY_MELEE_MENT);
-							break;
-						}
-					}
-				}
-			}
-			
-			break;
-		
-		case ENEMY_MOVE:
-		
-			setAnimation("run");
-	
-			if (stats.in_combat) {
-
-				if (++stats.dir_ticks > stats.dir_favor && stats.patrol_ticks == 0) {
-					stats.direction = face(pursue_pos.x, pursue_pos.y);				
-					stats.dir_ticks = 0;
-				}
-				
-				if (dist > stats.melee_range && stats.cooldown_ticks == 0) {
-				
-					// check ranged physical!
-					//if (!powers->powers[stats.power_index[RANGED_PHYS]].requires_los || los) {
-					if (los) {
-						if ((rand() % 100) < stats.power_chance[RANGED_PHYS] && stats.power_ticks[RANGED_PHYS] == 0) {
-							
-							newState(ENEMY_RANGED_PHYS);
-							break;
-						}
-					}
-					// check ranged spell!
-					// if (!powers->powers[stats.power_index[RANGED_MENT]].requires_los || los) {
-					if (los) {
-						if ((rand() % 100) < stats.power_chance[RANGED_MENT] && stats.power_ticks[RANGED_MENT] == 0) {
-							
-							newState(ENEMY_RANGED_MENT);
-							break;
-						}
-					}
-				
-					if (!move()) {
-						// hit an obstacle.  Try the next best angle
-						prev_direction = stats.direction;
-						stats.direction = faceNextBest(pursue_pos.x, pursue_pos.y);
-						if (!move()) {
-							newState(ENEMY_STANCE);
-							stats.direction = prev_direction;
-						}
-					}
-				}
-				else {
-					newState(ENEMY_STANCE);
-				}
-			}
-			else {
-				newState(ENEMY_STANCE);
-			}
-			break;
-			
-		case ENEMY_MELEE_PHYS:
-			
-			setAnimation("melee");
-
-			if (activeAnimation->getCurFrame() == 1) {
-				sfx_phys = true;
-			}
-
-			// the attack hazard is alive for a single frame
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()/2 && haz == NULL) {
-				powers->activate(stats.power_index[MELEE_PHYS], &stats, pursue_pos);
-				stats.power_ticks[MELEE_PHYS] = stats.power_cooldown[MELEE_PHYS];
-			}
-
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()-1) {
-				newState(ENEMY_STANCE);
-				stats.cooldown_ticks = stats.cooldown;
-			}
-			break;
-
-		case ENEMY_RANGED_PHYS:
-
-			setAnimation("ranged");
-	
-			// monsters turn to keep aim at the hero
-			stats.direction = face(pursue_pos.x, pursue_pos.y);
-			
-			if (activeAnimation->getCurFrame() == 1) {
-				sfx_phys = true;
-			}
-			
-			// the attack hazard is alive for a single frame
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()/2 && haz == NULL) {
-				powers->activate(stats.power_index[RANGED_PHYS], &stats, pursue_pos);
-				stats.power_ticks[RANGED_PHYS] = stats.power_cooldown[RANGED_PHYS];
-			}
-			
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()-1) {
-				newState(ENEMY_STANCE);
-				stats.cooldown_ticks = stats.cooldown;
-			}
-			break;
-
-		
-		case ENEMY_MELEE_MENT:
-	
-			setAnimation("ment");
-
-			if (activeAnimation->getCurFrame() == 1) {
-				sfx_ment = true;
-			}
-			
-			// the attack hazard is alive for a single frame
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()/2 && haz == NULL) {
-				powers->activate(stats.power_index[MELEE_MENT], &stats, pursue_pos);
-				stats.power_ticks[MELEE_MENT] = stats.power_cooldown[MELEE_MENT];
-			}
-			
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()-1) {
-				newState(ENEMY_STANCE);
-				stats.cooldown_ticks = stats.cooldown;
-			}
-			break;
-
-		case ENEMY_RANGED_MENT:
-
-			setAnimation("ment");
-		
-			// monsters turn to keep aim at the hero
-			stats.direction = face(pursue_pos.x, pursue_pos.y);
-	
-			if (activeAnimation->getCurFrame() == 1) {
-				sfx_ment = true;
-			}
-			
-			// the attack hazard is alive for a single frame
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()/2 && haz == NULL) {
-			
-				powers->activate(stats.power_index[RANGED_MENT], &stats, pursue_pos);
-				stats.power_ticks[RANGED_MENT] = stats.power_cooldown[RANGED_MENT];
-			}
-			
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()-1) {
-				newState(ENEMY_STANCE);
-				stats.cooldown_ticks = stats.cooldown;
-			}
-			break;
-	
-		case ENEMY_HIT:
-			// enemy has taken damage (but isn't dead)
-
-			setAnimation("hit");
-			if (activeAnimation->getCurFrame() == 1) {
-				sfx_hit = true;
-			}
-
-			if (activeAnimation->getCurFrame() == activeAnimation->getMaxFrame()-1) {
-				newState(ENEMY_STANCE);
-			}
-			
-			break;
-			
-		case ENEMY_DEAD:
-
-			// corpse means the creature is dead and done animating		
-			if (!stats.corpse) {
-				setAnimation("die");
-				
-				if (activeAnimation->getCurFrame() == 1) {
-					sfx_die = true;
-				}
-            }
-
-			break;
-		
-		case ENEMY_CRITDEAD:
-			// critdead is an optional, more gruesome death animation
-		
-			// corpse means the creature is dead and done animating
-			if (!stats.corpse) {
-				setAnimation("critdie");
-				
-				if (activeAnimation->getCurFrame() == 1) {
-					sfx_critdie = true;
-				}
-			}
-			
-			break;
-	}
-
+	eb->logic();
+	return;
 }
 
 /**
@@ -481,10 +127,10 @@ void Enemy::logic() {
  */
 bool Enemy::takeHit(Hazard h) {
 	if (stats.cur_state != ENEMY_DEAD && stats.cur_state != ENEMY_CRITDEAD) 
-	{
-
+	{   
 		if (!stats.in_combat) {
-			stats.in_combat = true;
+			stats.join_combat = true;
+            stats.in_combat = true;
 			stats.last_seen.x = stats.hero_pos.x;
 			stats.last_seen.y = stats.hero_pos.y;
 			powers->activate(stats.power_index[BEACON], &stats, stats.pos); //emit beacon
@@ -493,8 +139,14 @@ bool Enemy::takeHit(Hazard h) {
 		// exit if it was a beacon (to prevent stats.targeted from being set)
 		if (powers->powers[h.power_index].beacon) return false;
 
+        // prepare the combat text
+	    CombatText *combat_text = CombatText::Instance();
+	    
 		// if it's a miss, do nothing
-		if (rand() % 100 > (h.accuracy - stats.avoidance + 25)) return false; 
+		if (rand() % 100 > (h.accuracy - stats.avoidance + 25)) {
+		    combat_text->addMessage("miss", stats.pos, DISPLAY_MISS);
+		    return false; 
+		}
 		
 		// calculate base damage
 		int dmg;
@@ -529,6 +181,13 @@ bool Enemy::takeHit(Hazard h) {
 		if (crit) {
 			dmg = dmg + h.dmg_max;
 			map->shaky_cam_ticks = FRAMES_PER_SEC/2;
+			
+			// show crit damage
+		    combat_text->addMessage(dmg, stats.pos, DISPLAY_CRIT);
+		}
+		else {
+		    // show normal damage
+		    combat_text->addMessage(dmg, stats.pos, DISPLAY_DAMAGE);
 		}
 		
 		// apply damage
@@ -543,8 +202,16 @@ bool Enemy::takeHit(Hazard h) {
 			if (h.slow_duration > stats.slow_duration) stats.slow_duration = h.slow_duration;
 			if (h.bleed_duration > stats.bleed_duration) stats.bleed_duration = h.bleed_duration;
 			if (h.immobilize_duration > stats.immobilize_duration) stats.immobilize_duration = h.immobilize_duration;
+			if (h.forced_move_duration > stats.forced_move_duration) stats.forced_move_duration = h.forced_move_duration;
+			if (h.forced_move_speed != 0) {
+				float theta = powers->calcTheta(stats.hero_pos.x, stats.hero_pos.y, stats.pos.x, stats.pos.y);
+				stats.forced_speed.x = ceil((float)h.forced_move_speed * cos(theta));
+				stats.forced_speed.y = ceil((float)h.forced_move_speed * sin(theta));
+			}
 			if (h.hp_steal != 0) {
-				h.src_stats->hp += (int)ceil((float)dmg * (float)h.hp_steal / 100.0);
+			    int heal_amt = (int)ceil((float)dmg * (float)h.hp_steal / 100.0);
+    			combat_text->addMessage(heal_amt, h.src_stats->pos, DISPLAY_HEAL);
+				h.src_stats->hp += heal_amt;
 				if (h.src_stats->hp > h.src_stats->maxhp) h.src_stats->hp = h.src_stats->maxhp;
 			}
 			if (h.mp_steal != 0) {
@@ -564,15 +231,20 @@ bool Enemy::takeHit(Hazard h) {
 			if (stats.hp <= 0 && crit) {
 				doRewards();
 				stats.cur_state = ENEMY_CRITDEAD;
+				map->collider.unblock(stats.pos.x,stats.pos.y);
+
 			}
 			else if (stats.hp <= 0) {
 				doRewards();
-				stats.cur_state = ENEMY_DEAD;		
+				stats.cur_state = ENEMY_DEAD;
+				map->collider.unblock(stats.pos.x,stats.pos.y);				
+
 			}
 			// don't go through a hit animation if stunned
 			else if (h.stun_duration == 0) {
 				stats.cur_state = ENEMY_HIT;
 			}
+
 		}
 		
 		return true;
@@ -638,5 +310,6 @@ Renderable Enemy::getRender() {
 
 Enemy::~Enemy() {
 	delete haz;
+	delete eb;
 }
 

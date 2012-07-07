@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -27,17 +27,8 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef GAMESTATELOAD_H
 #define GAMESTATELOAD_H
 
-#include "Settings.h"
-#include "InputState.h"
-#include "FontEngine.h"
-#include "WidgetButton.h"
-#include "FileParser.h"
-#include "Settings.h"
 #include "StatBlock.h"
-#include "ItemManager.h"
 #include "GameState.h"
-#include "MenuConfirm.h"
-#include "SharedResources.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -46,7 +37,9 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include <string>
 #include <sstream>
 
-
+class ItemManager;
+class MenuConfirm;
+class WidgetButton;
 class WidgetLabel;
 
 
@@ -57,7 +50,7 @@ private:
 
 	void loadGraphics();
 	void loadPortrait(int slot);
-	string getMapName(string map_filename);
+	std::string getMapName(const std::string& map_filename);
 
 	ItemManager *items;
 	WidgetButton *button_exit;
@@ -76,7 +69,7 @@ private:
 	StatBlock stats[GAME_SLOT_MAX];
 	int equipped[GAME_SLOT_MAX][3];	
 	SDL_Rect slot_pos[GAME_SLOT_MAX];
-	string current_map[GAME_SLOT_MAX];
+	std::string current_map[GAME_SLOT_MAX];
 
 	bool loading_requested;
 	bool loading;

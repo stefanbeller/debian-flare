@@ -1,5 +1,5 @@
 /*
-Copyright 2011 kitano
+Copyright © 2011-2012 kitano
 
 This file is part of FLARE.
 
@@ -25,14 +25,12 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef WIDGETINPUT_H
 #define WIDGETINPUT_H
 
-#include "FontEngine.h"
-#include "InputState.h"
+#include "Utils.h"
+#include "Widget.h"
 #include <SDL.h>
 #include <string>
 
-using namespace std;
-
-class WidgetInput {
+class WidgetInput : public Widget {
 
 protected:
 
@@ -43,8 +41,9 @@ protected:
 	bool enabled;
 	bool inFocus;
 	bool pressed;
+	bool hover;
 
-	string text; // the text that has been typed into the box
+	std::string text; // the text that has been typed into the box
 	unsigned int max_characters;
 	int cursor_frame;
 	
@@ -54,9 +53,10 @@ public:
 	WidgetInput();
 	
 	void logic();
-	void render();
+	bool logic(int x, int y);
+	void render(SDL_Surface *target = NULL);
 	bool checkClick();
-	string getText() { return text; }
+	std::string getText() { return text; }
 	void setPosition(int x, int y);
 
 	SDL_Rect pos;

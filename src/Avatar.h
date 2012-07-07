@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -25,18 +25,19 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 
 
 #include "Entity.h"
-#include "Utils.h"
-#include "InputState.h"
-#include "MapIso.h"
-#include "StatBlock.h"
-#include "Hazard.h"
-#include "PowerManager.h"
 #include "SharedResources.h"
-#include "MenuManager.h"
+#include "Utils.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
 
+#include <math.h>
+#include <string>
+
+class Entity;
+class Hazard;
+class PowerManager;
+class StatBlock;
 
 /**
  * Avatar State enum
@@ -55,14 +56,14 @@ enum AvatarState {
 
 class Avatar : public Entity {
 private:
-	
+
 	PowerManager *powers;
 
 	bool lockSwing;
 	bool lockCast;
 	bool lockShoot;
 	bool animFwd;
-	
+
 	Mix_Chunk *sound_melee;
 	Mix_Chunk *sound_hit;
 	Mix_Chunk *sound_die;
@@ -70,24 +71,35 @@ private:
 	Mix_Chunk *sound_steps[4];
 	Mix_Chunk *level_up;
 
-	string img_main;
-	string img_armor;
-	string img_off;
+	std::string img_main;
+	std::string img_armor;
+	std::string img_off;
+
+	bool transform_triggered;
 
 public:
 	Avatar(PowerManager *_powers, MapIso *_map);
 	~Avatar();
-	
+
 	void init();
-	void loadGraphics(string img_main, string img_armor, string img_off);
+	void loadGraphics(const std::string& img_main, std::string img_armor, const std::string& img_off);
 	void loadSounds();
-	void loadStepFX(string stepname);
-	
+	void loadStepFX(const std::string& stepname);
+
 	void logic(int actionbar_power, bool restrictPowerUse);
-	bool pressing_move();	
+	bool pressing_move();
 	void set_direction();
 	bool takeHit(Hazard h);
-	string log_msg;
+	std::string log_msg;
+	
+	// transformation handling
+	void transform();
+	void untransform();
+	bool untransform_triggered;
+	bool setPowers;
+	bool revertPowers;
+	StatBlock *hero_stats;
+	StatBlock *charmed_stats;
 
 	virtual Renderable getRender();
 
@@ -96,7 +108,10 @@ public:
 	int current_power;
 	Point act_target;
 	bool drag_walking;
-    bool newLevelNotification;
+	bool newLevelNotification;
+
+private:
+	void handlePower(int actionbar_power);
 };
 
 #endif

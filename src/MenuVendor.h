@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,21 +22,17 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef MENU_VENDOR_H
 #define MENU_VENDOR_H
 
-#include "InputState.h"
-#include "Utils.h"
-#include "FontEngine.h"
 #include "MenuItemStorage.h"
-#include "WidgetTooltip.h"
-#include "StatBlock.h"
-#include "WidgetButton.h"
-#include "NPC.h"
-#include "SharedResources.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
 
 #include <string>
 
+class InputState;
+class NPC;
+class StatBlock;
+class WidgetButton;
 
 const int VENDOR_SLOTS = 80;
 
@@ -68,6 +64,7 @@ public:
 	void saveInventory();
 
 	bool visible;
+	bool talker_visible;
 	SDL_Rect slots_area;
 };
 

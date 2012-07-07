@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Thane Brimhall
+Copyright © 2011-2012 Thane Brimhall
 
 This file is part of FLARE.
 
@@ -20,12 +20,16 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  *
  * The MessageEngine class loads all of FLARE's internal messages from a configuration file
  * and returns them as human-readable strings.
- * 
+ *
  * This class is primarily used for making sure FLARE is flexible and translatable.
  */
 
+#include "GetText.h"
 #include "SharedResources.h"
+#include "Settings.h"
 #include <sstream>
+
+using namespace std;
 
 MessageEngine::MessageEngine() {
 	GetText infile;
@@ -50,13 +54,13 @@ MessageEngine::MessageEngine() {
  * Each of the get() functions returns the mapped value
  * They differ only on which variables they replace in the string - strings replace %s, integers replace %d
  */
-string MessageEngine::get(string key) {
+string MessageEngine::get(const string& key) {
 	string message = messages[key];
 	if (message == "") message = key;
 	return message;
 }
 
-string MessageEngine::get(string key, int i) {
+string MessageEngine::get(const string& key, int i) {
 	string message = messages[key];
 	if (message == "") message = key;
 	size_t index = message.find("%d");
@@ -64,7 +68,7 @@ string MessageEngine::get(string key, int i) {
 	return message;
 }
 
-string MessageEngine::get(string key, string s) {
+string MessageEngine::get(const string& key, const string& s) {
 	string message = messages[key];
 	if (message == "") message = key;
 	size_t index = message.find("%s");
@@ -72,7 +76,7 @@ string MessageEngine::get(string key, string s) {
 	return message;
 }
 
-string MessageEngine::get(string key, int i, string s) {
+string MessageEngine::get(const string& key, int i, const string& s) {
 	string message = messages[key];
 	if (message == "") message = key;
 	size_t index = message.find("%d");
@@ -82,7 +86,7 @@ string MessageEngine::get(string key, int i, string s) {
 	return message;
 }
 
-string MessageEngine::get(string key, int i, int j) {
+string MessageEngine::get(const string& key, int i, int j) {
 	string message = messages[key];
 	if (message == "") message = key;
 	size_t index = message.find("%d");
@@ -93,7 +97,7 @@ string MessageEngine::get(string key, int i, int j) {
 }
 
 // Changes an int into a string
-string MessageEngine::str(int i){	
+string MessageEngine::str(int i) {
 	stringstream ss;
 	ss << i;
 	return ss.str();

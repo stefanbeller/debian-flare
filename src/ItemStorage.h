@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -23,9 +23,9 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #define ITEM_STORAGE_H
 
 #include <SDL.h>
-#include "ItemManager.h"
 
-using namespace std;
+class ItemManager;
+class ItemStack;
 
 class ItemStorage {
 protected:
@@ -38,10 +38,10 @@ public:
 
 	ItemStack & operator [] (int slot);
 
-	void setItems(string s);
-	void setQuantities(string s);
-	string getItems();
-	string getQuantities();
+	void setItems(std::string s);
+	void setQuantities(std::string s);
+	std::string getItems();
+	std::string getQuantities();
 	void add(ItemStack stack, int slot = -1);
 	void substract(int slot, int quantity = 1);
 	bool remove(int item);

@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -18,16 +18,17 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef GAMESTATETITLE_H
 #define GAMESTATETITLE_H
 
-#include "Settings.h"
 #include "GameState.h"
-#include "WidgetButton.h"
-#include "WidgetLabel.h"
+
+class WidgetButton;
+class WidgetLabel;
 
 class GameStateTitle : public GameState {
 private:
 	SDL_Surface *logo;
 	WidgetButton *button_play;
 	WidgetButton *button_exit;
+    WidgetButton *button_cfg;
 	WidgetLabel *label_version;
 	
 public:

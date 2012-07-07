@@ -1,5 +1,5 @@
 /*
-Copyright 2011 kitano
+Copyright © 2011-2012 kitano
 
 This file is part of FLARE.
 
@@ -17,12 +17,17 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 
 #include "WidgetInput.h"
 #include "SharedResources.h"
+#include "Settings.h"
+
+using namespace std;
+
 
 WidgetInput::WidgetInput() {
 	
 	enabled = true;
 	inFocus = false;
 	pressed = false;
+	hover = false;
 	max_characters = 20;
 	
 	loadGraphics(mods->locate("images/menus/input.png"));
@@ -32,7 +37,7 @@ WidgetInput::WidgetInput() {
 	pos.h = background->h/2;
 	
 	cursor_frame = 0;
-	
+
 }
 
 void WidgetInput::loadGraphics(const string& filename) {
@@ -53,31 +58,44 @@ void WidgetInput::loadGraphics(const string& filename) {
 }
 
 void WidgetInput::logic() {
+	if (logic(inpt->mouse.x,inpt->mouse.y))
+		return;
+}
+
+bool WidgetInput::logic(int x, int y) {
+	Point mouse = {x,y};
+
+	// Change the hover state
+	if (isWithin(pos, mouse)) {
+		hover = true;
+	} else {
+		hover = false;
+	}
 
 	if (checkClick()) {
 		inFocus = true;
 	}
 
 	// if clicking elsewhere unfocus the text box
-	if (inp->pressing[MAIN1]) {
-		if (!isWithin(pos, inp->mouse)) {
+	if (inpt->pressing[MAIN1]) {
+		if (!isWithin(pos, inpt->mouse)) {
 			inFocus = false;
 		}
 	}
 
 	if (inFocus) {
 
-		if (inp->inkeys != "") {
+		if (inpt->inkeys != "") {
 			// handle text input
-			text += inp->inkeys;
+			text += inpt->inkeys;
 			if (text.length() > max_characters) {
 				text = text.substr(0, max_characters);
 			}
 		}
 			
 		// handle backspaces
-		if (!inp->lock[DEL] && inp->pressing[DEL]) {
-			inp->lock[DEL] = true;
+		if (!inpt->lock[DEL] && inpt->pressing[DEL]) {
+			inpt->lock[DEL] = true;
 			// remove utf-8 character
 			int n = text.length()-1;
 			while (n > 0 && ((text[n] & 0xc0) == 0x80) ) n--;
@@ -90,10 +108,14 @@ void WidgetInput::logic() {
 		if (cursor_frame == FRAMES_PER_SEC+FRAMES_PER_SEC) cursor_frame = 0;
 		
 	}
-
+	return true;
 }
 
-void WidgetInput::render() {
+void WidgetInput::render(SDL_Surface *target) {
+	if (target == NULL) {
+		target = screen;
+	}
+
 	SDL_Rect src;
 	src.x = 0;
 	src.y = 0;
@@ -102,22 +124,22 @@ void WidgetInput::render() {
 
 	if (!inFocus)
 		src.y = 0;
-	else if (isWithin(pos, inp->mouse))
+	else if (hover)
 		src.y = pos.h;
 	else
 		src.y = pos.h;
 
-	SDL_BlitSurface(background, &src, screen, &pos);
+	SDL_BlitSurface(background, &src, target, &pos);
 
 	if (!inFocus) {
-		font->render(text, font_pos.x, font_pos.y, JUSTIFY_LEFT, screen, FONT_WHITE);
+		font->render(text, font_pos.x, font_pos.y, JUSTIFY_LEFT, target, FONT_WHITE);
 	}
 	else {
 		if (cursor_frame < FRAMES_PER_SEC) {
-			font->renderShadowed(text + "|", font_pos.x, font_pos.y, JUSTIFY_LEFT, screen, FONT_WHITE);
+			font->renderShadowed(text + "|", font_pos.x, font_pos.y, JUSTIFY_LEFT, target, FONT_WHITE);
 		}
 		else {
-			font->renderShadowed(text, font_pos.x, font_pos.y, JUSTIFY_LEFT, screen, FONT_WHITE);		
+			font->renderShadowed(text, font_pos.x, font_pos.y, JUSTIFY_LEFT, target, FONT_WHITE);
 		}
 	}
 }
@@ -136,13 +158,13 @@ bool WidgetInput::checkClick() {
 	if (!enabled) return false;
 
 	// main button already in use, new click not allowed
-	if (inp->lock[MAIN1]) return false;
+	if (inpt->lock[MAIN1]) return false;
 
 	// main click released, so the button state goes back to unpressed
-	if (pressed && !inp->lock[MAIN1]) {
+	if (pressed && !inpt->lock[MAIN1]) {
 		pressed = false;
 		
-		if (isWithin(pos, inp->mouse)) {
+		if (isWithin(pos, inpt->mouse)) {
 		
 			// activate upon release
 			return true;
@@ -152,10 +174,10 @@ bool WidgetInput::checkClick() {
 	pressed = false;
 	
 	// detect new click
-	if (inp->pressing[MAIN1]) {
-		if (isWithin(pos, inp->mouse)) {
+	if (inpt->pressing[MAIN1]) {
+		if (isWithin(pos, inpt->mouse)) {
 		
-			inp->lock[MAIN1] = true;
+			inpt->lock[MAIN1] = true;
 			pressed = true;
 
 		}

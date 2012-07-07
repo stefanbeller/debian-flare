@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -20,37 +20,39 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  *
  * Handles the config, display, and usage of the 0-9 hotkeys, mouse buttons, and menu calls
  */
- 
+
 #include "MenuActionBar.h"
+#include "PowerManager.h"
 #include "SharedResources.h"
+#include "Settings.h"
+#include "StatBlock.h"
 #include "WidgetLabel.h"
+#include "WidgetTooltip.h"
 
 #include <string>
 #include <sstream>
+
+using namespace std;
 
 
 MenuActionBar::MenuActionBar(PowerManager *_powers, StatBlock *_hero, SDL_Surface *_icons) {
 	powers = _powers;
 	hero = _hero;
 	icons = _icons;
-	
+
 	src.x = 0;
 	src.y = 0;
 	src.w = 32;
 	src.h = 32;
-	label_src.x = 0;
-	label_src.y = 0;
-	label_src.w = 640;
-	label_src.h = 10;
 	drag_prev_slot = -1;
-	
+
 	clear();
-	
+
 	// TEMP: set action bar positions
 	// TODO: define in a config file so that the menu is customizable
 	int offset_x = (VIEW_W - 640)/2;
 	int offset_y = VIEW_H-32;
-	
+
 	for (int i=0; i<12; i++) {
 		slots[i].w = slots[i].h = 32;
 		slots[i].y = VIEW_H-32;
@@ -58,15 +60,15 @@ MenuActionBar::MenuActionBar(PowerManager *_powers, StatBlock *_hero, SDL_Surfac
 	}
 	slots[10].x += 32;
 	slots[11].x += 32;
-	
+
 	// menu button positions
 	for (int i=0; i<4; i++) {
 		menus[i].w = menus[i].h = 32;
 		menus[i].y = VIEW_H-32;
 		menus[i].x = offset_x + 480 + i*32;
 	}
-		
-	// screen areas occupied by the three main sections	
+
+	// screen areas occupied by the three main sections
 	numberArea.h = mouseArea.h = menuArea.h = 32;
 	numberArea.y = mouseArea.y = menuArea.y = offset_y;
 	numberArea.x = offset_x+32;
@@ -75,22 +77,46 @@ MenuActionBar::MenuActionBar(PowerManager *_powers, StatBlock *_hero, SDL_Surfac
 	mouseArea.w = 64;
 	menuArea.x = offset_x+480;
 	menuArea.w = 128;
-	
+
 	loadGraphics();
+
+	// set keybinding labels
+	for (unsigned int i=0;i<16;i++) {
+		labels[i] = new WidgetLabel();
+	}
+	for (unsigned int i=0; i<10; i++) {
+		if (inpt->binding[i+6] < 8)
+			labels[i]->set(slots[i].x+slots[i].w, slots[i].y+slots[i].h-12, JUSTIFY_RIGHT, VALIGN_TOP, mouse_button[inpt->binding[i+6]-1], FONT_WHITE);
+		else
+			labels[i]->set(slots[i].x+slots[i].w, slots[i].y+slots[i].h-12, JUSTIFY_RIGHT, VALIGN_TOP, SDL_GetKeyName((SDLKey)inpt->binding[i+6]), FONT_WHITE);
+	}
+	for (unsigned int i=0; i<2; i++) {
+		if (inpt->binding[i+20] < 8)
+			labels[i+10]->set(slots[i+10].x+slots[i+10].w, slots[i+10].y+slots[i+10].h-12, JUSTIFY_RIGHT, VALIGN_TOP, mouse_button[inpt->binding[i+20]-1], FONT_WHITE);
+		else
+			labels[i+10]->set(slots[i+10].x+slots[i+10].w, slots[i+10].y+slots[i+10].h-12, JUSTIFY_RIGHT, VALIGN_TOP, SDL_GetKeyName((SDLKey)inpt->binding[i+20]), FONT_WHITE);
+	}
+	for (unsigned int i=0; i<4; i++) {
+		if (inpt->binding[i+16] < 8)
+			labels[i+12]->set(menus[i].x+menus[i].w, menus[i].y+menus[i].h-12, JUSTIFY_RIGHT, VALIGN_TOP, mouse_button[inpt->binding[i+16]-1], FONT_WHITE);
+		else
+			labels[i+12]->set(menus[i].x+menus[i].w, menus[i].y+menus[i].h-12, JUSTIFY_RIGHT, VALIGN_TOP, SDL_GetKeyName((SDLKey)inpt->binding[i+16]), FONT_WHITE);
+	}
 }
 
 void MenuActionBar::clear() {
 	// clear action bar
 	for (int i=0; i<12; i++) {
 		hotkeys[i] = -1;
+		actionbar[i] = -1;
 		slot_item_count[i] = -1;
 		slot_enabled[i] = true;
 	}
 
     // clear menu notifications
-    for (int i=0; i<4; i++) 
+    for (int i=0; i<4; i++)
         requires_attention[i] = false;
-	
+
 	// default: LMB set to basic melee attack
 	hotkeys[10] = 1;
 }
@@ -99,27 +125,22 @@ void MenuActionBar::loadGraphics() {
 
 	emptyslot = IMG_Load(mods->locate("images/menus/slot_empty.png").c_str());
 	background = IMG_Load(mods->locate("images/menus/actionbar_trim.png").c_str());
-	labels = IMG_Load(mods->locate("images/menus/actionbar_labels.png").c_str());
 	disabled = IMG_Load(mods->locate("images/menus/disabled.png").c_str());
 	attention = IMG_Load(mods->locate("images/menus/attention_glow.png").c_str());
-	if(!emptyslot || !background || !labels || !disabled) {
+	if(!emptyslot || !background || !disabled) {
 		fprintf(stderr, "Couldn't load image: %s\n", IMG_GetError());
 		SDL_Quit();
 	}
-	
+
 	// optimize
 	SDL_Surface *cleanup = background;
 	background = SDL_DisplayFormatAlpha(background);
-	SDL_FreeSurface(cleanup);	
-	
+	SDL_FreeSurface(cleanup);
+
 	cleanup = emptyslot;
 	emptyslot = SDL_DisplayFormatAlpha(emptyslot);
 	SDL_FreeSurface(cleanup);
-	
-	cleanup = labels;
-	labels = SDL_DisplayFormatAlpha(labels);
-	SDL_FreeSurface(cleanup);
-	
+
 	cleanup = disabled;
 	disabled = SDL_DisplayFormatAlpha(disabled);
 	SDL_FreeSurface(cleanup);
@@ -135,7 +156,7 @@ void MenuActionBar::loadGraphics() {
 void MenuActionBar::renderIcon(int icon_id, int x, int y) {
 	SDL_Rect icon_src;
 	SDL_Rect icon_dest;
-	
+
 	icon_dest.x = x;
 	icon_dest.y = y;
 	icon_src.w = icon_src.h = icon_dest.w = icon_dest.h = 32;
@@ -152,7 +173,7 @@ void MenuActionBar::renderAttention(int menu_id) {
 	dest.x = (VIEW_W - 640)/2 + (menu_id * 32) + 32*15;
 	dest.y = VIEW_H-32;
     dest.w = dest.h = 32;
-	SDL_BlitSurface(attention, NULL, screen, &dest);		
+	SDL_BlitSurface(attention, NULL, screen, &dest);
 }
 
 void MenuActionBar::logic() {
@@ -164,9 +185,9 @@ void MenuActionBar::render() {
 
 	SDL_Rect dest;
 	SDL_Rect trimsrc;
-	
+
 	int offset_x = (VIEW_W - 640)/2;
-	
+
 	dest.x = offset_x;
 	dest.y = VIEW_H-35;
 	dest.w = 640;
@@ -175,13 +196,13 @@ void MenuActionBar::render() {
 	trimsrc.y = 0;
 	trimsrc.w = 640;
 	trimsrc.h = 35;
-	
-	SDL_BlitSurface(background, &trimsrc, screen, &dest);	
-	
+
+	SDL_BlitSurface(background, &trimsrc, screen, &dest);
+
 	// draw hotkeyed icons
 	src.x = src.y = 0;
 	src.w = src.h = dest.w = dest.h = 32;
-	dest.y = VIEW_H-32;	
+	dest.y = VIEW_H-32;
 	for (int i=0; i<12; i++) {
 
 		if (i<=9)
@@ -190,14 +211,21 @@ void MenuActionBar::render() {
 			dest.x = offset_x + (i * 32) + 64;
 
 		if (hotkeys[i] != -1) {
-			slot_enabled[i] = (hero->hero_cooldown[hotkeys[i]] == 0) && (slot_item_count[i] != 0); //see if the slot should be greyed out
-			renderIcon(powers->powers[hotkeys[i]].icon, dest.x, dest.y);
+			const Power &power = powers->getPower(hotkeys[i]);
+			slot_enabled[i] = (hero->hero_cooldown[hotkeys[i]] == 0)
+						   && (slot_item_count[i] != 0)
+						   && !hero->stun_duration
+						   && hero->alive
+						   && hero->canUsePower(power, hotkeys[i]); //see if the slot should be greyed out
+			unsigned icon_offset = 0;/* !slot_enabled[i] ? ICON_DISABLED_OFFSET :
+								   (hero->activated_powerslot == i ? ICON_HIGHLIGHT_OFFSET : 0); */
+			renderIcon(power.icon + icon_offset, dest.x, dest.y);
 		}
 		else {
 			SDL_BlitSurface(emptyslot, &src, screen, &dest);
 		}
 	}
-	
+
 	renderCooldowns();
 	renderItemCounts();
 
@@ -205,15 +233,12 @@ void MenuActionBar::render() {
     for (int i=0; i<4; i++)
         if (requires_attention[i])
             renderAttention(i);
-	
+
 	// draw hotkey labels
-	// TODO: keybindings
-	dest.x = offset_x;
-	dest.y = VIEW_H-10;
-	dest.w = 640;
-	dest.h = 10;
-	SDL_BlitSurface(labels, &label_src, screen, &dest);
-	
+	for (int i=0; i<16;i++) {
+		labels[i]->render();
+	}
+
 }
 
 /**
@@ -224,26 +249,26 @@ void MenuActionBar::renderCooldowns() {
 
 	SDL_Rect item_src;
 	SDL_Rect item_dest;
-	
+
 	for (int i=0; i<12; i++) {
 		if (!slot_enabled[i]) {
-		
+
 			item_src.x = 0;
 			item_src.y = 0;
 			item_src.h = 32;
 			item_src.w = 32;
-			
+
 			// Wipe from bottom to top
 			if (hero->hero_cooldown[hotkeys[i]]) {
 				item_src.h = 32 * (hero->hero_cooldown[hotkeys[i]] / (float)powers->powers[hotkeys[i]].cooldown);
 			}
-			
+
 			// SDL_BlitSurface will write to these Rects, so make a copy
 			item_dest.x = slots[i].x;
 			item_dest.y = slots[i].y;
 			item_dest.w = slots[i].w;
 			item_dest.h = slots[i].h;
-			
+
 			SDL_BlitSurface(disabled, &item_src, screen, &item_dest);
 		}
 	}
@@ -260,7 +285,7 @@ void MenuActionBar::renderItemCounts() {
 		if (slot_item_count[i] > -1) {
 			ss.str("");
 			ss << slot_item_count[i];
-	
+
 			WidgetLabel label;
 			label.set(slots[i].x, slots[i].y, JUSTIFY_LEFT, VALIGN_TOP, ss.str(), FONT_WHITE);
 			label.render();
@@ -273,7 +298,7 @@ void MenuActionBar::renderItemCounts() {
  */
 TooltipData MenuActionBar::checkTooltip(Point mouse) {
 	TooltipData tip;
-	
+
 	//int offset_x = (VIEW_W - 640)/2;
 	if (isWithin(menus[0], mouse)) {
 		tip.lines[tip.num_lines++] = msg->get("Character Menu (C)");
@@ -336,7 +361,7 @@ void MenuActionBar::remove(Point mouse) {
 int MenuActionBar::checkAction(Point mouse) {
 
 	// check click action
-	if ((inp->pressing[MAIN1] && !inp->lock[MAIN1]) || (inp->pressing[MAIN2] && !inp->lock[MAIN2])) {
+	if ((inpt->pressing[MAIN1] && !inpt->lock[MAIN1]) || (inpt->pressing[MAIN2] && !inpt->lock[MAIN2])) {
 		for (int i=0; i<12; i++) {
 			if (isWithin(slots[i], mouse) && slot_enabled[i]) {
 
@@ -344,24 +369,23 @@ int MenuActionBar::checkAction(Point mouse) {
 			}
 		}
 	}
-	
+
 	// check hotkey action
-	if (inp->pressing[BAR_1] && slot_enabled[0]) return hotkeys[0];
-	if (inp->pressing[BAR_2] && slot_enabled[1]) return hotkeys[1];
-	if (inp->pressing[BAR_3] && slot_enabled[2]) return hotkeys[2];
-	if (inp->pressing[BAR_4] && slot_enabled[3]) return hotkeys[3];
-	if (inp->pressing[BAR_5] && slot_enabled[4]) return hotkeys[4];
-	if (inp->pressing[BAR_6] && slot_enabled[5]) return hotkeys[5];
-	if (inp->pressing[BAR_7] && slot_enabled[6]) return hotkeys[6];
-	if (inp->pressing[BAR_8] && slot_enabled[7]) return hotkeys[7];
-	if (inp->pressing[BAR_9] && slot_enabled[8]) return hotkeys[8];
-	if (inp->pressing[BAR_0] && slot_enabled[9]) return hotkeys[9];
-	if (inp->pressing[MAIN1] && slot_enabled[10] && !inp->lock[MAIN1]) {
-		return hotkeys[10];
-	}
-	if (inp->pressing[MAIN2] && slot_enabled[11] && !inp->lock[MAIN2]) {
-		return hotkeys[11];
-	}
+	if (inpt->pressing[BAR_1] && slot_enabled[0]) return hotkeys[0];
+	if (inpt->pressing[BAR_2] && slot_enabled[1]) return hotkeys[1];
+	if (inpt->pressing[BAR_3] && slot_enabled[2]) return hotkeys[2];
+	if (inpt->pressing[BAR_4] && slot_enabled[3]) return hotkeys[3];
+	if (inpt->pressing[BAR_5] && slot_enabled[4]) return hotkeys[4];
+	if (inpt->pressing[BAR_6] && slot_enabled[5]) return hotkeys[5];
+	if (inpt->pressing[BAR_7] && slot_enabled[6]) return hotkeys[6];
+	if (inpt->pressing[BAR_8] && slot_enabled[7]) return hotkeys[7];
+	if (inpt->pressing[BAR_9] && slot_enabled[8]) return hotkeys[8];
+	if (inpt->pressing[BAR_0] && slot_enabled[9]) return hotkeys[9];
+	if (inpt->pressing[MAIN1] && slot_enabled[10] && !inpt->lock[MAIN1]) return hotkeys[10];
+	if (inpt->pressing[MAIN2] && slot_enabled[11] && !inpt->lock[MAIN2]) return hotkeys[11];
+	// joystick actions
+	if (inpt->joy_pressing[0] && slot_enabled[10]) return hotkeys[10];
+	if (inpt->joy_pressing[1] && slot_enabled[11]) return hotkeys[11];
 	return -1;
 }
 
@@ -370,7 +394,7 @@ int MenuActionBar::checkAction(Point mouse) {
  */
 int MenuActionBar::checkDrag(Point mouse) {
 	int power_index;
-	
+
 	for (int i=0; i<12; i++) {
 		if (isWithin(slots[i], mouse)) {
 			drag_prev_slot = i;
@@ -379,7 +403,7 @@ int MenuActionBar::checkDrag(Point mouse) {
 			return power_index;
 		}
 	}
-	
+
 	return -1;
  }
 
@@ -387,28 +411,28 @@ int MenuActionBar::checkDrag(Point mouse) {
  * if clicking a menu, act as if the player pressed that menu's hotkey
  */
 void MenuActionBar::checkMenu(Point mouse, bool &menu_c, bool &menu_i, bool &menu_p, bool &menu_l) {
-	if ((inp->pressing[MAIN1] && !inp->lock[MAIN1]) || (inp->pressing[MAIN2] && !inp->lock[MAIN2])) {
+	if ((inpt->pressing[MAIN1] && !inpt->lock[MAIN1]) || (inpt->pressing[MAIN2] && !inpt->lock[MAIN2])) {
 		if (isWithin(menus[MENU_CHARACTER], mouse)) {
-			if (inp->pressing[MAIN1] && !inp->lock[MAIN1]) inp->lock[MAIN1] = true;
-			else inp->lock[MAIN2] = true;
+			if (inpt->pressing[MAIN1] && !inpt->lock[MAIN1]) inpt->lock[MAIN1] = true;
+			else inpt->lock[MAIN2] = true;
 			menu_c = true;
 		}
 		else if (isWithin(menus[MENU_INVENTORY], mouse)) {
-			if (inp->pressing[MAIN1] && !inp->lock[MAIN1]) inp->lock[MAIN1] = true;
-			else inp->lock[MAIN2] = true;
+			if (inpt->pressing[MAIN1] && !inpt->lock[MAIN1]) inpt->lock[MAIN1] = true;
+			else inpt->lock[MAIN2] = true;
 			menu_i = true;
 		}
 		else if (isWithin(menus[MENU_POWERS], mouse)) {
-			if (inp->pressing[MAIN1] && !inp->lock[MAIN1]) inp->lock[MAIN1] = true;
-			else inp->lock[MAIN2] = true;
-			inp->lock[MAIN1] = true;
+			if (inpt->pressing[MAIN1] && !inpt->lock[MAIN1]) inpt->lock[MAIN1] = true;
+			else inpt->lock[MAIN2] = true;
+			inpt->lock[MAIN1] = true;
 			menu_p = true;
 		}
 		else if (isWithin(menus[MENU_LOG], mouse)) {
-			if (inp->pressing[MAIN1] && !inp->lock[MAIN1]) inp->lock[MAIN1] = true;
-			else inp->lock[MAIN2] = true;
-			inp->lock[MAIN1] = true;
-			menu_l = true;		
+			if (inpt->pressing[MAIN1] && !inpt->lock[MAIN1]) inpt->lock[MAIN1] = true;
+			else inpt->lock[MAIN2] = true;
+			inpt->lock[MAIN1] = true;
+			menu_l = true;
 		}
 	}
 }
@@ -424,6 +448,9 @@ void MenuActionBar::set(int power_id[12]) {
 MenuActionBar::~MenuActionBar() {
 	SDL_FreeSurface(emptyslot);
 	SDL_FreeSurface(background);
-	SDL_FreeSurface(labels);
 	SDL_FreeSurface(disabled);
+
+	for (unsigned int i=0; i<16; i++) {
+		delete labels[i];
+	}
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Thane Brimhall
+Copyright © 2011-2012 Thane Brimhall
 
 This file is part of FLARE.
 
@@ -28,26 +28,21 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #ifndef MESSAGE_ENGINE_H
 #define MESSAGE_ENGINE_H
 
-using namespace std;
-
-#include "GetText.h"
-#include "Settings.h"
 #include <map>
 
 class MessageEngine {
 
 private:
-	map<string,string> messages;
-	string str(int i);
+	std::map<std::string,std::string> messages;
+	std::string str(int i);
 
 public:
 	MessageEngine();
-	string get(string key);
-	string get(string key, int i);
-	string get(string key, string s);
-	string get(string key, int i, string s);
-	string get(string key, int i, int j);
-
+	std::string get(const std::string& key);
+	std::string get(const std::string& key, int i);
+	std::string get(const std::string& key, const std::string& s);
+	std::string get(const std::string& key, int i, const std::string& s);
+	std::string get(const std::string& key, int i, int j);
 };
 
 #endif

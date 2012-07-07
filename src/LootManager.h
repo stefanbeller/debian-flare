@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright � 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -20,21 +20,21 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  *
  * Handles floor loot
  */
- 
+
 #ifndef LOOT_MANAGER_H
 #define LOOT_MANAGER_H
 
-#include <string>
-#include <sstream>
+#include "ItemManager.h"
+
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
 
-#include "Utils.h"
-#include "ItemManager.h"
-#include "WidgetTooltip.h"
-#include "EnemyManager.h"
-#include "SharedResources.h"
+#include <string>
+
+class EnemyManager;
+class MapIso;
+class WidgetTooltip;
 
 struct LootDef {
 	ItemStack stack;
@@ -42,6 +42,16 @@ struct LootDef {
 	Point pos;
 	int gold;
 	TooltipData tip;
+	
+	void clear() {
+		stack.item = 0;
+		stack.quantity = 0;
+		frame = 0;
+		pos.x = 0;
+		pos.y = 0;
+		gold = 0;
+		tip.clear();
+	}
 };
 
 
@@ -62,16 +72,19 @@ private:
 	WidgetTooltip *tip;
 	EnemyManager *enemies;
 	MapIso *map;
+	StatBlock *hero;
 
 	// functions
 	void loadGraphics();
 	void calcTables();
 	int lootLevel(int base_level);
+	void clearLoot(LootDef &ld);
+	
 	
 	SDL_Surface *flying_loot[64];
 	SDL_Surface *flying_gold[3];
 	
-	string animation_id[64];
+	std::string animation_id[64];
 	int animation_count;
 	
 	Mix_Chunk *loot_flip;
@@ -91,8 +104,10 @@ private:
 	int anim_loot_frames;
 	int anim_loot_duration;
 	
+
+
 public:
-	LootManager(ItemManager *_items, EnemyManager *_enemies, MapIso *_map);
+	LootManager(ItemManager *_items, EnemyManager *_enemies, MapIso *_map, StatBlock *_hero);
 	~LootManager();
 
 	void handleNewMap();
@@ -107,6 +122,7 @@ public:
 	void addGold(int count, Point pos);
 	void removeLoot(int index);
 	ItemStack checkPickup(Point mouse, Point cam, Point hero_pos, int &gold, bool inv_full);
+	ItemStack checkAutoPickup(Point cam, Point hero_pos, int &gold, bool inv_full);
 	
 	Renderable getRender(int index);
 	

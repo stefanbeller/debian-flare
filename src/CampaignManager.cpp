@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger
+Copyright © 2011-2012 Clint Bellanger
 
 This file is part of FLARE.
 
@@ -22,7 +22,14 @@ FLARE.  If not, see http://www.gnu.org/licenses/
  */
 
 #include "CampaignManager.h"
+#include "MenuItemStorage.h"
 #include "SharedResources.h"
+#include "UtilsParsing.h"
+
+#include <sstream>
+
+using namespace std;
+
 
 CampaignManager::CampaignManager() {
 
@@ -158,7 +165,7 @@ void CampaignManager::rewardXP(int amount) {
 	addMsg(msg->get("You receive %d XP.", amount));
 }	
 
-void CampaignManager::addMsg(string new_msg) {
+void CampaignManager::addMsg(const string& new_msg) {
 	if (log_msg != "") log_msg += " ";
 	log_msg += new_msg;
 }

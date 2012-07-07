@@ -1,5 +1,5 @@
 /*
-Copyright 2011 Clint Bellanger and morris989
+Copyright © 2011-2012 Clint Bellanger and morris989
 
 This file is part of FLARE.
 
@@ -25,14 +25,13 @@ FLARE.  If not, see http://www.gnu.org/licenses/
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_mixer.h>
-#include "Utils.h"
-#include "FontEngine.h"
-#include "NPC.h"
-#include "CampaignManager.h"
+
 #include <string>
 #include <sstream>
-#include "WidgetButton.h"
 
+class CampaignManager;
+class NPC;
+class WidgetButton;
 
 class MenuTalker {
 private:
@@ -42,7 +41,7 @@ private:
 	SDL_Surface *background;
 	SDL_Surface *portrait;
 	SDL_Surface *msg_buffer;
-	string hero_name;
+	std::string hero_name;
 
 	int dialog_node;
 
@@ -55,15 +54,18 @@ public:
 	void chooseDialogNode();
 	void logic();
 	void render();
-	void setHero(string name, string portrait_filename);
+	void setHero(const std::string& name, const std::string& portrait_filename);
 	void createBuffer();
 	
 	bool visible;
+	bool vendor_visible;
+	bool has_vendor_button;
 	int event_cursor;
 	bool accept_lock;
 
 	WidgetButton *advanceButton;
 	WidgetButton *closeButton;
+	WidgetButton *vendorButton;
 	
 };
 
